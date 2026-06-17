@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useChartData } from "@/lib/useChartData";
 import { getPastDates, AcuteStressEvent } from "@/lib/mockData";
 import { X, Flame, AlertCircle } from "lucide-react";
+import { MetricInfo } from "@/components/MetricInfo";
 
 export function AcuteStressHeatmap() {
   const { acuteStress } = useChartData();
@@ -39,7 +40,10 @@ export function AcuteStressHeatmap() {
     >
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h3 className="text-base font-bold text-white">Acute Stress Heatmap</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-base font-bold text-white">Acute Stress Heatmap</h3>
+            <MetricInfo metricKey="acute_stress" />
+          </div>
           <p className="text-xs text-slate-400">
             Cross-references heart rate spikes against zero-movement intervals
           </p>

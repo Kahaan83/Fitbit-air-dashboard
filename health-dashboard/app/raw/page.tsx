@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { useDashboardStore } from "@/lib/store";
 import * as mock from "@/lib/mockData";
+import { MetricInfo } from "@/components/MetricInfo";
 import {
   Heart,
   Activity,
@@ -26,6 +27,7 @@ interface MetricCardProps {
   color: string;        // tailwind color name e.g. "rose"
   sparkPoints?: number[]; // normalized 0-1 for the mini sparkline
   latestTime?: string;
+  metricKey?: string;   // key into METRIC_INFO for the info tooltip
 }
 
 // ── Mini sparkline SVG ─────────────────────────────────────────────────────────
@@ -68,7 +70,7 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
 }
 
 // ── Single metric card ─────────────────────────────────────────────────────────
-function MetricCard({ icon, label, value, unit, sub, color, sparkPoints, latestTime }: MetricCardProps) {
+function MetricCard({ icon, label, value, unit, sub, color, sparkPoints, latestTime, metricKey }: MetricCardProps) {
   const borderMap: Record<string, string> = {
     rose:    "border-rose-500/20 bg-rose-500/5",
     violet:  "border-violet-500/20 bg-violet-500/5",
@@ -110,7 +112,10 @@ function MetricCard({ icon, label, value, unit, sub, color, sparkPoints, latestT
 
       {/* Value */}
       <div>
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">{label}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">{label}</span>
+          {metricKey && <MetricInfo metricKey={metricKey} size="sm" />}
+        </div>
         <div className="flex items-baseline gap-1.5 mt-1">
           <span className={`text-4xl font-black font-mono tabular-nums ${valueMap[color] ?? "text-white"}`}>
             {value}
@@ -293,6 +298,7 @@ export default function RawMetricsPage() {
           color="rose"
           sparkPoints={hrSparkPoints.length >= 2 ? hrSparkPoints : [68, 70, 72, 74, 71, 73, 72]}
           latestTime={lastHRTime}
+          metricKey="heart_rate"
         />
 
         {/* HRV RMSSD */}
@@ -305,6 +311,7 @@ export default function RawMetricsPage() {
           color="violet"
           sparkPoints={hrvSparkPoints.length >= 2 ? hrvSparkPoints : undefined}
           latestTime={lastHRVTime}
+          metricKey="hrv"
         />
 
         {/* SpO2 */}
@@ -317,6 +324,7 @@ export default function RawMetricsPage() {
           color="sky"
           sparkPoints={spo2SparkPoints.length >= 2 ? spo2SparkPoints : [97.2, 97.4, 97.1, 97.6, 97.5, 97.3, 97.4]}
           latestTime={lastSpo2Time}
+          metricKey="spo2"
         />
 
         {/* Resting HR */}
@@ -329,6 +337,7 @@ export default function RawMetricsPage() {
           color="indigo"
           sparkPoints={restingHRArr.slice(-20).map((d) => d.value)}
           latestTime={restingHRArr.length ? fmt(restingHRArr[restingHRArr.length - 1].timestamp) : undefined}
+          metricKey="resting_hr"
         />
 
         {/* Skin Temp */}
@@ -345,6 +354,7 @@ export default function RawMetricsPage() {
           color={tempIsAbsolute ? "amber" : Math.abs(latestTemp) < 0.5 ? "emerald" : "amber"}
           sparkPoints={tempSparkPoints.length >= 2 ? tempSparkPoints : undefined}
           latestTime={lastTempTime}
+          metricKey="skin_temp"
         />
 
         {/* Steps */}
@@ -357,6 +367,7 @@ export default function RawMetricsPage() {
           color="emerald"
           sparkPoints={stepsArr.slice(-12).map((d) => d.value)}
           latestTime={lastStepsTime}
+          metricKey="steps"
         />
       </div>
 
@@ -374,21 +385,22 @@ export default function RawMetricsPage() {
                 value: `${latestSleepHours.toFixed(1)}h`,
                 sub: isLive ? "Last night" : "Sample",
                 color: "indigo" as const,
+                metricKey: "sleep_duration",
               },
               ...(isLive && sleepArr.length
                 ? (() => {
                     const s = sleepArr[sleepArr.length - 1].value;
                     const stages = s?.stages || {};
                     return [
-                      { label: "REM", value: `${Math.round((stages.rem || 0) / 60 * 10) / 10}h`, sub: "REM sleep", color: "violet" as const },
-                      { label: "Deep", value: `${Math.round((stages.deep || 0) / 60 * 10) / 10}h`, sub: "Deep sleep", color: "sky" as const },
-                      { label: "Awake", value: `${Math.round((stages.awake || 0))}m`, sub: "Awake time", color: "amber" as const },
+                      { label: "REM", value: `${Math.round((stages.rem || 0) / 60 * 10) / 10}h`, sub: "REM sleep", color: "violet" as const, metricKey: "rem_sleep" },
+                      { label: "Deep", value: `${Math.round((stages.deep || 0) / 60 * 10) / 10}h`, sub: "Deep sleep", color: "sky" as const, metricKey: "deep_sleep" },
+                      { label: "Awake", value: `${Math.round((stages.awake || 0))}m`, sub: "Awake time", color: "amber" as const, metricKey: "awake_sleep" },
                     ];
                   })()
                 : [
-                    { label: "REM", value: "1.8h", sub: "Sample", color: "violet" as const },
-                    { label: "Deep", value: "1.2h", sub: "Sample", color: "sky" as const },
-                    { label: "Awake", value: "18m", sub: "Sample", color: "amber" as const },
+                    { label: "REM", value: "1.8h", sub: "Sample", color: "violet" as const, metricKey: "rem_sleep" },
+                    { label: "Deep", value: "1.2h", sub: "Sample", color: "sky" as const, metricKey: "deep_sleep" },
+                    { label: "Awake", value: "18m", sub: "Sample", color: "amber" as const, metricKey: "awake_sleep" },
                   ]),
             ].map((item) => {
               const colorCls: Record<string, string> = {
@@ -399,7 +411,10 @@ export default function RawMetricsPage() {
               };
               return (
                 <div key={item.label} className="rounded-xl border border-white/5 bg-white/3 p-3">
-                  <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{item.label}</span>
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{item.label}</span>
+                    <MetricInfo metricKey={item.metricKey} size="sm" />
+                  </div>
                   <div className={`text-2xl font-black font-mono mt-1 ${colorCls[item.color] ?? "text-white"}`}>{item.value}</div>
                   <span className="text-[10px] text-slate-600">{item.sub}</span>
                 </div>

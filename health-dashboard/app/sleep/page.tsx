@@ -4,6 +4,7 @@ import React from "react";
 import NocturnalSpO2Chart from "@/components/charts/NocturnalSpO2Chart";
 import SleepDebtChart from "@/components/charts/SleepDebtChart";
 import { useChartData } from "@/lib/useChartData";
+import { MetricInfo } from "@/components/MetricInfo";
 import { Moon, ShieldAlert, Award } from "lucide-react";
 
 export default function SleepPage() {
@@ -36,7 +37,10 @@ export default function SleepPage() {
         {/* Metric 1: Average Sleep Duration */}
         <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average Sleep Duration</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average Sleep Duration</span>
+              <MetricInfo metricKey="sleep_duration" />
+            </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
               <span className="text-3xl font-black font-mono text-white">{avgSlept.toFixed(1)}</span>
               <span className="text-xs text-slate-400">hours</span>
@@ -55,7 +59,10 @@ export default function SleepPage() {
         {/* Metric 2: Average Sleep Debt */}
         <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average Sleep Debt</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average Sleep Debt</span>
+              <MetricInfo metricKey="sleep_debt" />
+            </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
               <span className={`text-3xl font-black font-mono ${avgDebt > 0 ? "text-red-400" : "text-emerald-400"}`}>
                 {avgDebt > 0 ? "+" : ""}
@@ -77,7 +84,10 @@ export default function SleepPage() {
         {/* Metric 3: Nocturnal Hypoxemic Episodes */}
         <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Hypoxemia Nights</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Hypoxemia Nights</span>
+              <MetricInfo metricKey="hypoxemia" />
+            </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
               <span className="text-3xl font-black font-mono text-white">{dipNightsCount}</span>
               <span className="text-xs text-slate-400">/ {nightsCount} nights</span>

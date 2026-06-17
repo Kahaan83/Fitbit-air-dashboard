@@ -12,6 +12,7 @@ import {
   ReferenceArea,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
+import { MetricInfo } from "@/components/MetricInfo";
 
 export function VO2MaxChart() {
   const { vo2Max } = useChartData();
@@ -36,7 +37,10 @@ export function VO2MaxChart() {
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-white">VO2 Max Progression</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-base font-bold text-white">VO2 Max Progression</h3>
+            <MetricInfo metricKey="vo2max" />
+          </div>
           <p className="text-xs text-slate-400">Cardiovascular fitness level estimation (ml/kg/min)</p>
         </div>
         <div className="flex gap-4 text-xs font-semibold">

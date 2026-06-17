@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
+import { MetricInfo } from "@/components/MetricInfo";
 
 export function HRVTrendChart() {
   const { hrv } = useChartData();
@@ -48,7 +49,10 @@ export function HRVTrendChart() {
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-white">HRV Recovery Trend</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-base font-bold text-white">HRV Recovery Trend</h3>
+            <MetricInfo metricKey="hrv" />
+          </div>
           <p className="text-xs text-slate-400">Daily RMSSD (ms) — 30 Day History</p>
         </div>
         <div className="flex gap-4 text-xs font-semibold">

@@ -4,6 +4,7 @@ import React from "react";
 import HRVTrendChart from "@/components/charts/HRVTrendChart";
 import VO2MaxChart from "@/components/charts/VO2MaxChart";
 import AcuteStressHeatmap from "@/components/charts/AcuteStressHeatmap";
+import { MetricInfo } from "@/components/MetricInfo";
 import { Activity, Zap, TrendingUp } from "lucide-react";
 import { useChartData } from "@/lib/useChartData";
 
@@ -32,7 +33,10 @@ export default function OverviewPage() {
         {/* Card 1: HRV */}
         <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Latest HRV (RMSSD)</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Latest HRV (RMSSD)</span>
+              <MetricInfo metricKey="hrv_overview" />
+            </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
               <span className="text-3xl font-black font-mono text-white">{latestHRV}</span>
               <span className="text-xs text-slate-400">ms</span>
@@ -51,7 +55,10 @@ export default function OverviewPage() {
         {/* Card 2: VO2 Max */}
         <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Cardiovascular VO2 Max</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Cardiovascular VO2 Max</span>
+              <MetricInfo metricKey="vo2max" />
+            </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
               <span className="text-3xl font-black font-mono text-white">{latestVO2}</span>
               <span className="text-xs text-slate-400">ml/kg/min</span>
@@ -68,7 +75,10 @@ export default function OverviewPage() {
         {/* Card 3: Acute Stress */}
         <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Detected Stress Events</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Detected Stress Events</span>
+              <MetricInfo metricKey="acute_stress" />
+            </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
               <span className="text-3xl font-black font-mono text-white">{stressCount}</span>
               <span className="text-xs text-slate-400">events / 30d</span>
