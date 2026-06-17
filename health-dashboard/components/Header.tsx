@@ -1,10 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
-import { Activity, ShieldCheck, Heart, Moon, Thermometer, Settings as SettingsIcon, Database } from "lucide-react";
+import { Activity, ShieldCheck, Heart, Moon, Thermometer, Settings as SettingsIcon, Database, RefreshCw } from "lucide-react";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -12,14 +12,34 @@ interface HeaderProps {
 
 export function Header({ onOpenSettings }: HeaderProps) {
   const pathname = usePathname();
-  const { dataMode, lastSync, liveData } = useDashboardStore();
+  const { dataMode, lastSync, liveData, setLiveData, setLastSync } = useDashboardStore();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    if (dataMode !== "live") return;
+    setIsRefreshing(true);
+    try {
+      const liveRes = await fetch("/api/live-data");
+      if (liveRes.ok) {
+        const livePayload = await liveRes.json();
+        setLiveData(livePayload);
+        setLastSync(new Date().toISOString());
+      } else {
+        alert("Live data fetch failed.");
+      }
+    } catch (err) {
+      alert("Backend is offline.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Navigation tabs definition
   const navigation = [
     { name: "Overview", href: "/", icon: Activity },
     { name: "Recovery", href: "/recovery", icon: Heart },
     { name: "Sleep", href: "/sleep", icon: Moon },
-    { name: "Raw Metrics", href: "/metrics", icon: Database },
+    { name: "Raw Metrics", href: "/raw", icon: Database },
   ];
 
   // Helper to determine stream quality
@@ -48,16 +68,45 @@ export function Header({ onOpenSettings }: HeaderProps) {
     return hasData ? "bg-emerald-500 shadow-emerald-500/20" : "bg-amber-500 shadow-amber-500/20";
   };
 
-  const getLatestValue = (streamName: string) => {
+  const getLatestValue = (streamName: string): string => {
+    if (dataMode === "sample") {
+      // Representative sample values
+      switch (streamName) {
+        case "Heart Rate": return "72 bpm";
+        case "HRV": return "51 ms";
+        case "SpO2": return "97.4%";
+        case "Skin Temp": return "+0.12°C";
+      }
+    }
     if (!liveData) return "—";
-    const data = {
-      "Heart Rate": liveData.heart_rate,
-      "HRV": liveData.hrv,
-      "SpO2": liveData.spo2,
-      "Skin Temp": liveData.sleep_temp,
-    }[streamName] || [];
-    
-    return data.length > 0 ? data[data.length - 1].value : "—";
+    switch (streamName) {
+      case "Heart Rate": {
+        const arr = liveData.heart_rate || [];
+        if (!arr.length) return "—";
+        return `${Math.round(arr[arr.length - 1].value)} bpm`;
+      }
+      case "HRV": {
+        const arr = liveData.hrv || [];
+        if (!arr.length) return "—";
+        return `${Math.round(arr[arr.length - 1].value)} ms`;
+      }
+      case "SpO2": {
+        const arr = liveData.spo2 || [];
+        const darr = liveData.daily_spo2 || [];
+        const src = arr.length ? arr : darr;
+        if (!src.length) return "—";
+        return `${src[src.length - 1].value.toFixed(1)}%`;
+      }
+      case "Skin Temp": {
+        const arr = liveData.sleep_temp || [];
+        if (!arr.length) return "—";
+        const v = arr[arr.length - 1].value;
+        // If value > 10, API is returning absolute body temp (not deviation)
+        if (Math.abs(v) > 10) return `${v.toFixed(1)}°C`;
+        return `${v >= 0 ? "+" : ""}${v.toFixed(2)}°C`;
+      }
+      default: return "—";
+    }
   };
 
   return (
@@ -108,7 +157,7 @@ export function Header({ onOpenSettings }: HeaderProps) {
           </nav>
 
           {/* Status Badge & Sync Info */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* Sync timestamp */}
             <div className="hidden text-right text-xs md:block">
               <span className="text-slate-500">Last Sync:</span>{" "}
@@ -116,6 +165,18 @@ export function Header({ onOpenSettings }: HeaderProps) {
                 {lastSync ? new Date(lastSync).toLocaleTimeString() : "—"}
               </span>
             </div>
+
+            {/* Refresh Button */}
+            {dataMode === "live" && (
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-slate-200 transition-colors disabled:opacity-50"
+                title="Refresh Data"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-emerald-400" : ""}`} />
+              </button>
+            )}
 
             {/* Connection badge */}
             <div
@@ -154,8 +215,14 @@ export function Header({ onOpenSettings }: HeaderProps) {
                   <div key={stream.name} className="flex items-center gap-2 text-slate-300 font-mono">
                     <span className={`h-2 w-2 rounded-full shadow-md ${dotColor}`} />
                     <StreamIcon className="h-3.5 w-3.5 text-slate-500" />
-                    <span>{stream.name}:</span>
-                    <span className="font-bold text-white">{getLatestValue(stream.name)}</span>
+                    <span>{stream.name}</span>
+                    <span
+                      className={`font-bold tabular-nums ${
+                        dataMode === "live" ? "text-emerald-400" : "text-slate-300"
+                      }`}
+                    >
+                      {getLatestValue(stream.name)}
+                    </span>
                   </div>
                 );
               })}
