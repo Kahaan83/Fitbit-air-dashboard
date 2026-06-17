@@ -1,0 +1,351 @@
+"""
+main.py — FastAPI server for the Google Health physiological dashboard.
+
+Exposes three endpoints:
+  GET  /api/status         — Token validity and scope info
+  GET  /api/health-data    — Full raw + derived data payload (empty shell in Phase 1)
+  POST /api/trigger-sync   — Force re-sync for a date range, cache results
+
+CORS is configured to allow requests from http://localhost:3000 (Next.js dev server).
+Run with: uvicorn main:app --reload --port 8000
+"""
+
+import logging
+import os
+from datetime import datetime, timezone
+from typing import Any
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, field_validator
+
+from auth import get_credentials, get_token_info
+from derived_metrics import (
+    calculate_ans_balance,
+    calculate_sleep_debt,
+    calculate_vo2_max,
+    identify_acute_stress,
+)
+from extractor import (
+    fetch_daily_hrv,
+    fetch_daily_resting_hr,
+    fetch_daily_spo2,
+    fetch_heart_rate,
+    fetch_hrv,
+    fetch_sleep,
+    fetch_sleep_temp,
+    fetch_spo2,
+    fetch_steps,
+)
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("main")
+
+# ─── Environment ──────────────────────────────────────────────────────────────
+load_dotenv()
+USER_MAX_HR = float(os.getenv("USER_MAX_HR", "185"))
+USER_RESTING_HR = float(os.getenv("USER_RESTING_HR", "58"))
+USER_TARGET_SLEEP_HOURS = float(os.getenv("USER_TARGET_SLEEP_HOURS", "8"))
+
+# ─── In-memory cache ──────────────────────────────────────────────────────────
+# Stores the most recently fetched payload. Cleared on trigger-sync.
+# Phase 2 uses the empty shell; Phase 3 populates with real data.
+_cache: dict[str, Any] = {
+    "payload": None,        # The last full health-data response
+    "synced_at": None,      # ISO 8601 timestamp of last successful sync
+}
+
+# ─── Empty response shell ─────────────────────────────────────────────────────
+def _empty_health_payload() -> dict[str, Any]:
+    """Returns the standard empty payload structure for Phase 1."""
+    return {
+        "heart_rate": [],
+        "hrv": [],
+        "spo2": [],
+        "sleep_temp": [],
+        "sleep": [],
+        "steps": [],
+        "derived": {
+            "ans_balance": [],
+            "vo2_max": [],
+            "acute_stress": [],
+            "sleep_debt": [],
+        },
+    }
+
+
+# ─── FastAPI App ──────────────────────────────────────────────────────────────
+app = FastAPI(
+    title="Fitbit Air — Google Health API Gateway",
+    description=(
+        "Local FastAPI server that authenticates with Google OAuth 2.0, "
+        "pulls physiological telemetry from the Google Health API v4, "
+        "and exposes computed metrics for the Next.js dashboard."
+    ),
+    version="1.0.0",
+)
+
+# ─── CORS ─────────────────────────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Next.js dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ─── Request / Response Models ────────────────────────────────────────────────
+class SyncRequest(BaseModel):
+    start_date: str
+    end_date: str
+
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def validate_date_format(cls, v: str) -> str:
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"Date must be in YYYY-MM-DD format, got: '{v}'")
+        return v
+
+
+# ─── Routes ───────────────────────────────────────────────────────────────────
+
+@app.get("/api/status", summary="OAuth token status and scope info")
+async def get_status() -> JSONResponse:
+    """
+    Returns the current OAuth token status.
+
+    Response schema:
+        {
+            "token_valid": bool,
+            "scopes": list[str],
+            "last_refreshed": str | null  (ISO 8601)
+        }
+    """
+    info = get_token_info()
+    return JSONResponse(content=info)
+
+
+@app.get("/api/health-data", summary="Full raw and derived health data payload")
+async def get_health_data() -> JSONResponse:
+    """
+    Returns the cached health data payload.
+
+    If the cache is empty, this dynamically triggers a sync for the past 30 days
+    and caches the results. If the credentials or token are missing/invalid,
+    it gracefully returns the empty shell payload so the frontend can display
+    Sample Data Mode.
+
+    The Cache-Control header (max-age=300) prevents excessive backend querying.
+    """
+    # Return cached payload if available
+    if _cache["payload"] is not None:
+        headers = {"Cache-Control": "max-age=300"}
+        return JSONResponse(content=_cache["payload"], headers=headers)
+
+    # Cache is empty: try to run automatic sync for the past 30 days
+    from datetime import timedelta
+    end_date_obj = datetime.now(timezone.utc).date()
+    start_date_obj = end_date_obj - timedelta(days=30)
+    
+    start_date_str = start_date_obj.isoformat()
+    end_date_str = end_date_obj.isoformat()
+
+    logger.info(f"Auto-syncing past 30 days: {start_date_str} to {end_date_str}")
+    
+    try:
+        credentials = get_credentials()
+        date_range = {"start_date": start_date_str, "end_date": end_date_str}
+        
+        # Fetch all data streams
+        heart_rate = fetch_heart_rate(credentials, date_range)
+        hrv = fetch_hrv(credentials, date_range)
+        spo2 = fetch_spo2(credentials, date_range)
+        steps = fetch_steps(credentials, date_range)
+        daily_hrv = fetch_daily_hrv(credentials, date_range)
+        daily_spo2 = fetch_daily_spo2(credentials, date_range)
+        daily_resting_hr = fetch_daily_resting_hr(credentials, date_range)
+        sleep_temp = fetch_sleep_temp(credentials, date_range)
+        sleep = fetch_sleep(credentials, date_range)
+
+        # Run derived metrics calculations
+        ans_balance = []
+        try:
+            ans_balance = calculate_ans_balance(hrv)
+        except Exception as e:
+            logger.error(f"Auto-sync calculate_ans_balance failed: {e}")
+
+        vo2_max = []
+        try:
+            vo2_max = calculate_vo2_max(daily_resting_hr, USER_MAX_HR)
+        except Exception as e:
+            logger.error(f"Auto-sync calculate_vo2_max failed: {e}")
+
+        acute_stress = []
+        try:
+            acute_stress = identify_acute_stress(heart_rate, steps, USER_RESTING_HR)
+        except Exception as e:
+            logger.error(f"Auto-sync identify_acute_stress failed: {e}")
+
+        sleep_debt = []
+        try:
+            sleep_debt = calculate_sleep_debt(sleep, USER_TARGET_SLEEP_HOURS)
+        except Exception as e:
+            logger.error(f"Auto-sync calculate_sleep_debt failed: {e}")
+
+        # Build compliance payload: 'hrv' contains daily_hrv for trends, 'raw_hrv' keeps intraday
+        payload = {
+            "heart_rate": heart_rate,
+            "hrv": daily_hrv,
+            "raw_hrv": hrv,
+            "spo2": spo2,
+            "daily_spo2": daily_spo2,
+            "daily_resting_hr": daily_resting_hr,
+            "sleep_temp": sleep_temp,
+            "sleep": sleep,
+            "steps": steps,
+            "derived": {
+                "ans_balance": ans_balance,
+                "vo2_max": vo2_max,
+                "acute_stress": acute_stress,
+                "sleep_debt": sleep_debt,
+            },
+        }
+        
+        _cache["payload"] = payload
+        _cache["synced_at"] = datetime.now(timezone.utc).isoformat()
+        
+        headers = {"Cache-Control": "max-age=300"}
+        return JSONResponse(content=payload, headers=headers)
+        
+    except Exception as e:
+        logger.warning(
+            f"Auto-sync on startup failed ({e}). Returning empty physiological shell."
+        )
+        # Graceful fallback to empty shell for Sample Mode
+        payload = _empty_health_payload()
+        headers = {"Cache-Control": "max-age=300"}
+        return JSONResponse(content=payload, headers=headers)
+
+
+@app.post("/api/trigger-sync", summary="Force re-sync for a date range")
+async def trigger_sync(body: SyncRequest) -> JSONResponse:
+    """
+    Calls all extractor functions in sequence for the given date range.
+
+    Runs derived metric calculations and caches results in memory.
+    """
+    logger.info(
+        f"trigger-sync: Fetching data from {body.start_date} to {body.end_date}"
+    )
+
+    # ── Authenticate ──────────────────────────────────────────────────────────
+    try:
+        credentials = get_credentials()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        logger.error(f"Authentication failed: {e}")
+        raise HTTPException(status_code=503, detail=f"Authentication failed: {str(e)}")
+
+    date_range = {"start_date": body.start_date, "end_date": body.end_date}
+
+    # ── Fetch all raw data ────────────────────────────────────────────────────
+    logger.info("Fetching raw data from Google Health API v4...")
+
+    heart_rate = fetch_heart_rate(credentials, date_range)
+    hrv = fetch_hrv(credentials, date_range)
+    spo2 = fetch_spo2(credentials, date_range)
+    steps = fetch_steps(credentials, date_range)
+    daily_hrv = fetch_daily_hrv(credentials, date_range)
+    daily_spo2 = fetch_daily_spo2(credentials, date_range)
+    daily_resting_hr = fetch_daily_resting_hr(credentials, date_range)
+    sleep_temp = fetch_sleep_temp(credentials, date_range)
+    sleep = fetch_sleep(credentials, date_range)
+
+    # ── Run derived metrics ───────────────────────────────────────────────────
+    ans_balance = []
+    try:
+        ans_balance = calculate_ans_balance(hrv)
+    except Exception as e:
+        logger.error(f"calculate_ans_balance failed: {e}")
+
+    vo2_max = []
+    try:
+        vo2_max = calculate_vo2_max(daily_resting_hr, USER_MAX_HR)
+    except Exception as e:
+        logger.error(f"calculate_vo2_max failed: {e}")
+
+    acute_stress = []
+    try:
+        acute_stress = identify_acute_stress(heart_rate, steps, USER_RESTING_HR)
+    except Exception as e:
+        logger.error(f"identify_acute_stress failed: {e}")
+
+    sleep_debt = []
+    try:
+        sleep_debt = calculate_sleep_debt(sleep, USER_TARGET_SLEEP_HOURS)
+    except Exception as e:
+        logger.error(f"calculate_sleep_debt failed: {e}")
+
+    # ── Build and cache compliance payload ────────────────────────────────────
+    payload = {
+        "heart_rate": heart_rate,
+        "hrv": daily_hrv,  # Compliance: HRV maps to daily rollup trend in frontend
+        "raw_hrv": hrv,
+        "spo2": spo2,
+        "daily_spo2": daily_spo2,
+        "daily_resting_hr": daily_resting_hr,
+        "sleep_temp": sleep_temp,
+        "sleep": sleep,
+        "steps": steps,
+        "derived": {
+            "ans_balance": ans_balance,
+            "vo2_max": vo2_max,
+            "acute_stress": acute_stress,
+            "sleep_debt": sleep_debt,
+        },
+    }
+
+    _cache["payload"] = payload
+    _cache["synced_at"] = datetime.now(timezone.utc).isoformat()
+
+    total_records = (
+        len(heart_rate)
+        + len(hrv)
+        + len(spo2)
+        + len(sleep_temp)
+        + len(sleep)
+        + len(steps)
+    )
+
+    logger.info(
+        f"trigger-sync complete: {total_records} raw records cached at "
+        f"{_cache['synced_at']}"
+    )
+
+    return JSONResponse(content={
+        "status": "ok",
+        "records_fetched": total_records,
+        "synced_at": _cache["synced_at"],
+    })
+
+
+# ─── Root health check ────────────────────────────────────────────────────────
+@app.get("/", include_in_schema=False)
+async def root() -> dict[str, str]:
+    return {
+        "service": "Fitbit Air — Google Health API Gateway",
+        "status": "running",
+        "docs": "http://localhost:8000/docs",
+    }
