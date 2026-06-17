@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
-import { Activity, ShieldCheck, Heart, Moon, Thermometer, Settings as SettingsIcon } from "lucide-react";
+import { Activity, ShieldCheck, Heart, Moon, Thermometer, Settings as SettingsIcon, Database } from "lucide-react";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -19,6 +19,7 @@ export function Header({ onOpenSettings }: HeaderProps) {
     { name: "Overview", href: "/", icon: Activity },
     { name: "Recovery", href: "/recovery", icon: Heart },
     { name: "Sleep", href: "/sleep", icon: Moon },
+    { name: "Raw Metrics", href: "/metrics", icon: Database },
   ];
 
   // Helper to determine stream quality
@@ -45,6 +46,18 @@ export function Header({ onOpenSettings }: HeaderProps) {
     }
 
     return hasData ? "bg-emerald-500 shadow-emerald-500/20" : "bg-amber-500 shadow-amber-500/20";
+  };
+
+  const getLatestValue = (streamName: string) => {
+    if (!liveData) return "—";
+    const data = {
+      "Heart Rate": liveData.heart_rate,
+      "HRV": liveData.hrv,
+      "SpO2": liveData.spo2,
+      "Skin Temp": liveData.sleep_temp,
+    }[streamName] || [];
+    
+    return data.length > 0 ? data[data.length - 1].value : "—";
   };
 
   return (
@@ -141,7 +154,8 @@ export function Header({ onOpenSettings }: HeaderProps) {
                   <div key={stream.name} className="flex items-center gap-2 text-slate-300 font-mono">
                     <span className={`h-2 w-2 rounded-full shadow-md ${dotColor}`} />
                     <StreamIcon className="h-3.5 w-3.5 text-slate-500" />
-                    <span>{stream.name}</span>
+                    <span>{stream.name}:</span>
+                    <span className="font-bold text-white">{getLatestValue(stream.name)}</span>
                   </div>
                 );
               })}

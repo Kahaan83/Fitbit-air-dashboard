@@ -128,14 +128,53 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <form onSubmit={handleSave} className="flex-1 space-y-6 px-6 py-6 text-sm">
                 {/* Mode Select Section */}
                 <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-                  <h3 className="font-semibold text-slate-200 mb-2">Connection Status</h3>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-400">Current Data Source:</span>
-                    <span className={`font-semibold px-2 py-0.5 rounded ${
-                      dataMode === "live" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-slate-800 text-slate-300 border border-slate-700"
-                    }`}>
-                      {dataMode === "live" ? "Live Data" : "Sample Data Mode"}
-                    </span>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-semibold text-slate-200">Data Source</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">Toggle between mock and live data</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (dataMode === "live") {
+                          setDataMode("sample");
+                        } else {
+                          // Try activating live mode
+                          setLoading(true);
+                          try {
+                            const statusRes = await fetch("/api/status");
+                            const statusData = await statusRes.json();
+                            if (statusData.token_valid) {
+                              const liveRes = await fetch("/api/live-data");
+                              if (liveRes.ok) {
+                                const livePayload = await liveRes.json();
+                                const { setLiveData, setLastSync } = useDashboardStore.getState();
+                                setLiveData(livePayload);
+                                setLastSync(new Date().toISOString());
+                                setDataMode("live");
+                              } else {
+                                alert("Live data fetch failed. Ensure your Python backend is running.");
+                              }
+                            } else {
+                              alert("No valid Google OAuth token found. Click 'Save & Connect Gateway' below to log in.");
+                            }
+                          } catch (err) {
+                            alert("Backend is offline. Please make sure the Python server is running on port 8000.");
+                          } finally {
+                            setLoading(false);
+                          }
+                        }
+                      }}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        dataMode === "live" ? "bg-indigo-600" : "bg-slate-700"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          dataMode === "live" ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
 

@@ -1,21 +1,14 @@
 """
 extractor.py — Google Health API v4 data extraction functions.
 
-Two distinct API patterns:
-  GET  /v4/users/me/...                  → list (intraday raw data)
-  POST /v4/users/me/...:dailyRollUp      → daily aggregates
-
-All functions return:
-    list[dict] with schema:
-    [{"timestamp": str (ISO 8601), "value": float | dict, "data_type": str}]
-
-If a function returns an empty list, the caller should not treat this as an
-error — the data may simply not be available for the requested date range.
+Queries correct endpoints under https://health.googleapis.com/v4/users/me/dataTypes/{dataType}/dataPoints
+Processes results to fit standard dashboard schema:
+  [{"timestamp": str (ISO 8601), "value": float | dict, "data_type": str}]
 """
 
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -28,15 +21,7 @@ logger = logging.getLogger("extractor")
 
 SKIN_TEMP_AVAILABLE: bool = os.getenv("SKIN_TEMP_AVAILABLE", "true").lower() == "true"
 
-# ─── Base URLs ────────────────────────────────────────────────────────────────
 BASE_URL = "https://health.googleapis.com/v4"
-HEALTH_METRICS_LIST_URL = f"{BASE_URL}/users/me/healthMetricsAndMeasurements"
-HEALTH_METRICS_ROLLUP_URL = f"{BASE_URL}/users/me/healthMetricsAndMeasurements:dailyRollUp"
-ACTIVITY_LIST_URL = f"{BASE_URL}/users/me/activityAndFitness"
-SLEEP_URL = f"{BASE_URL}/users/me/sleep:query"  # sleep-specific endpoint
-
-
-# ─── Shared Helpers ───────────────────────────────────────────────────────────
 
 def _get_auth_headers(credentials: Credentials) -> dict[str, str]:
     """Return Authorization header using the credentials Bearer token."""
@@ -46,79 +31,18 @@ def _get_auth_headers(credentials: Credentials) -> dict[str, str]:
         "Accept": "application/json",
     }
 
-
-def _iso_to_epoch_millis(date_str: str) -> int:
-    """Convert 'YYYY-MM-DD' to Unix epoch milliseconds (start of day UTC)."""
-    dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    return int(dt.timestamp() * 1000)
-
-
-def _epoch_millis_to_iso(epoch_ms: int | str) -> str:
-    """Convert Unix epoch milliseconds to ISO 8601 string."""
-    epoch_ms = int(epoch_ms)
-    dt = datetime.fromtimestamp(epoch_ms / 1000, tz=timezone.utc)
-    return dt.isoformat()
-
-
-def _normalize_response(
-    raw_points: list[dict[str, Any]],
-    data_type: str,
-    value_key: str = "value",
-) -> list[dict[str, Any]]:
-    """
-    Normalize a list of raw API data points into the standard schema.
-
-    Args:
-        raw_points: List of raw point dicts from the API response.
-        data_type:  The data type ID string (e.g., 'HEART_RATE').
-        value_key:  The field name within each point containing the numeric value.
-
-    Returns:
-        list[dict]: Normalized records with keys: timestamp, value, data_type.
-    """
-    normalized = []
-    for point in raw_points:
-        # Timestamps may be in epoch_ms (int) or ISO string — handle both
-        ts_raw = point.get("startTime") or point.get("timestamp") or point.get("date")
-        if ts_raw is None:
-            continue
-
-        if isinstance(ts_raw, (int, float)):
-            timestamp = _epoch_millis_to_iso(int(ts_raw))
-        elif isinstance(ts_raw, str) and ts_raw.isdigit():
-            timestamp = _epoch_millis_to_iso(int(ts_raw))
-        else:
-            # Already ISO or date string
-            timestamp = ts_raw
-
-        # Value may be nested — try to extract a float or keep as dict
-        raw_val = point.get(value_key) or point.get("value") or point.get("values")
-        if isinstance(raw_val, list) and len(raw_val) > 0:
-            # Take the first numeric value if it's a list
-            first = raw_val[0]
-            value: float | dict = first.get("fpVal") or first.get("intVal") or first
-        elif isinstance(raw_val, dict):
-            value = raw_val.get("fpVal") or raw_val.get("intVal") or raw_val
-        elif isinstance(raw_val, (int, float)):
-            value = float(raw_val)
-        else:
-            value = raw_val  # type: ignore[assignment]
-
-        normalized.append({
-            "timestamp": timestamp,
-            "value": value,
-            "data_type": data_type,
-        })
-    return normalized
-
+def _parse_date(date_obj: dict[str, Any]) -> str:
+    """Format Google API date object {"year": YYYY, "month": MM, "day": DD} as YYYY-MM-DD."""
+    try:
+        year = date_obj.get("year", 0)
+        month = date_obj.get("month", 0)
+        day = date_obj.get("day", 0)
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    except Exception:
+        return "1970-01-01"
 
 def _handle_response_errors(response: requests.Response, context: str) -> bool:
-    """
-    Log errors from an API response.
-
-    Returns:
-        True if the response is OK (2xx), False otherwise.
-    """
+    """Log errors from an API response."""
     if response.ok:
         return True
 
@@ -145,423 +69,345 @@ def _handle_response_errors(response: requests.Response, context: str) -> bool:
         )
     return False
 
-
-# ─── GET-based list calls (intraday raw data) ─────────────────────────────────
+# ─── Data Extraction Functions ──────────────────────────────────────────
 
 def fetch_heart_rate(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
-    """
-    Fetch intraday heart rate data via GET /healthMetricsAndMeasurements.
-
-    Args:
-        credentials: Valid Google OAuth2 credentials.
-        date_range:  {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-
-    Returns:
-        list[dict]: [{"timestamp": ISO8601, "value": float (bpm), "data_type": "HEART_RATE"}]
-    """
-    params = {
-        "dataTypeId": "HEART_RATE",
-        "startTime": _iso_to_epoch_millis(date_range["start_date"]),
-        "endTime": _iso_to_epoch_millis(date_range["end_date"]),
-    }
+    """Fetch intraday heart rate data via GET users/me/dataTypes/heart-rate/dataPoints."""
+    start_time = f"{date_range['start_date']}T00:00:00Z"
+    end_time = f"{date_range['end_date']}T23:59:59Z"
+    filter_expr = f"heart_rate.sample_time.physical_time >= \"{start_time}\" AND heart_rate.sample_time.physical_time <= \"{end_time}\""
+    
+    url = f"{BASE_URL}/users/me/dataTypes/heart-rate/dataPoints"
     response = requests.get(
-        HEALTH_METRICS_LIST_URL,
+        url,
         headers=_get_auth_headers(credentials),
-        params=params,
+        params={"filter": filter_expr, "pageSize": 10000},
         timeout=30,
     )
     if not _handle_response_errors(response, "fetch_heart_rate"):
         return []
 
     data = response.json()
-    points = data.get("dataPoint", data.get("point", data.get("measurements", [])))
-    logger.info(f"fetch_heart_rate: {len(points)} points returned.")
-    return _normalize_response(points, "HEART_RATE")
-
+    points = data.get("dataPoints", [])
+    
+    normalized = []
+    for pt in points:
+        hr_data = pt.get("heartRate", {})
+        ts = hr_data.get("sampleTime", {}).get("physicalTime")
+        val = hr_data.get("beatsPerMinute")
+        if ts and val is not None:
+            normalized.append({
+                "timestamp": ts,
+                "value": float(val),
+                "data_type": "HEART_RATE"
+            })
+            
+    logger.info(f"fetch_heart_rate: {len(normalized)} points returned.")
+    return normalized
 
 def fetch_hrv(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """
-    Fetch intraday heart rate variability (RMSSD) data via GET /healthMetricsAndMeasurements.
-
-    Args:
-        credentials: Valid Google OAuth2 credentials.
-        date_range:  {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-
-    Returns:
-        list[dict]: [{"timestamp": ISO8601, "value": float (RMSSD ms), "data_type": "HEART_RATE_VARIABILITY"}]
+    Fetch intraday heart rate variability (RMSSD) data.
+    Google Health API provides daily HRV metrics via daily-heart-rate-variability.
+    If intraday HRV is requested, we map to daily-heart-rate-variability.
     """
-    params = {
-        "dataTypeId": "HEART_RATE_VARIABILITY",
-        "startTime": _iso_to_epoch_millis(date_range["start_date"]),
-        "endTime": _iso_to_epoch_millis(date_range["end_date"]),
-    }
-    response = requests.get(
-        HEALTH_METRICS_LIST_URL,
-        headers=_get_auth_headers(credentials),
-        params=params,
-        timeout=30,
-    )
-    if not _handle_response_errors(response, "fetch_hrv"):
-        return []
-
-    data = response.json()
-    points = data.get("dataPoint", data.get("point", data.get("measurements", [])))
-    logger.info(f"fetch_hrv: {len(points)} points returned.")
-    return _normalize_response(points, "HEART_RATE_VARIABILITY")
-
+    return fetch_daily_hrv(credentials, date_range)
 
 def fetch_spo2(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
-    """
-    Fetch intraday oxygen saturation (SpO2) data via GET /healthMetricsAndMeasurements.
-
-    Args:
-        credentials: Valid Google OAuth2 credentials.
-        date_range:  {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-
-    Returns:
-        list[dict]: [{"timestamp": ISO8601, "value": float (%), "data_type": "OXYGEN_SATURATION"}]
-    """
-    params = {
-        "dataTypeId": "OXYGEN_SATURATION",
-        "startTime": _iso_to_epoch_millis(date_range["start_date"]),
-        "endTime": _iso_to_epoch_millis(date_range["end_date"]),
-    }
+    """Fetch oxygen saturation data via GET users/me/dataTypes/oxygen-saturation/dataPoints."""
+    start_time = f"{date_range['start_date']}T00:00:00Z"
+    end_time = f"{date_range['end_date']}T23:59:59Z"
+    filter_expr = f"oxygen_saturation.sample_time.physical_time >= \"{start_time}\" AND oxygen_saturation.sample_time.physical_time <= \"{end_time}\""
+    
+    url = f"{BASE_URL}/users/me/dataTypes/oxygen-saturation/dataPoints"
     response = requests.get(
-        HEALTH_METRICS_LIST_URL,
+        url,
         headers=_get_auth_headers(credentials),
-        params=params,
+        params={"filter": filter_expr, "pageSize": 10000},
         timeout=30,
     )
     if not _handle_response_errors(response, "fetch_spo2"):
         return []
 
     data = response.json()
-    points = data.get("dataPoint", data.get("point", data.get("measurements", [])))
-    logger.info(f"fetch_spo2: {len(points)} points returned.")
-    return _normalize_response(points, "OXYGEN_SATURATION")
-
+    points = data.get("dataPoints", [])
+    
+    normalized = []
+    for pt in points:
+        spo2_data = pt.get("oxygenSaturation", {})
+        ts = spo2_data.get("sampleTime", {}).get("physicalTime")
+        val = spo2_data.get("percentage")
+        if ts and val is not None:
+            normalized.append({
+                "timestamp": ts,
+                "value": float(val),
+                "data_type": "OXYGEN_SATURATION"
+            })
+            
+    logger.info(f"fetch_spo2: {len(normalized)} points returned.")
+    return normalized
 
 def fetch_steps(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
-    """
-    Fetch intraday step count data via GET /activityAndFitness.
-
-    Steps are required for the acute stress detection algorithm, which
-    cross-references HR spikes with zero-movement windows.
-
-    Args:
-        credentials: Valid Google OAuth2 credentials.
-        date_range:  {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-
-    Returns:
-        list[dict]: [{"timestamp": ISO8601, "value": int (step count), "data_type": "STEPS"}]
-    """
-    params = {
-        "dataTypeId": "STEPS",
-        "startTime": _iso_to_epoch_millis(date_range["start_date"]),
-        "endTime": _iso_to_epoch_millis(date_range["end_date"]),
-    }
+    """Fetch step count data via GET users/me/dataTypes/steps/dataPoints."""
+    start_time = f"{date_range['start_date']}T00:00:00Z"
+    end_time = f"{date_range['end_date']}T23:59:59Z"
+    filter_expr = f"steps.interval.start_time >= \"{start_time}\" AND steps.interval.start_time <= \"{end_time}\""
+    
+    url = f"{BASE_URL}/users/me/dataTypes/steps/dataPoints"
     response = requests.get(
-        ACTIVITY_LIST_URL,
+        url,
         headers=_get_auth_headers(credentials),
-        params=params,
+        params={"filter": filter_expr, "pageSize": 10000},
         timeout=30,
     )
     if not _handle_response_errors(response, "fetch_steps"):
         return []
 
     data = response.json()
-    points = data.get("dataPoint", data.get("point", data.get("measurements", [])))
-    logger.info(f"fetch_steps: {len(points)} points returned.")
-    return _normalize_response(points, "STEPS")
-
-
-# ─── POST-based dailyRollUp calls (daily aggregates) ─────────────────────────
-#
-# IMPORTANT: dailyRollUp is a POST endpoint, not GET. The date range is passed
-# in the JSON body as civil time strings ("YYYY-MM-DD"), NOT epoch milliseconds.
-# Never call this endpoint with a GET request — it will return 405 Method Not Allowed.
-
-def _post_daily_rollup(
-    credentials: Credentials,
-    data_type_id: str,
-    date_range: dict[str, str],
-    context: str,
-) -> list[dict[str, Any]]:
-    """
-    Shared POST call for all dailyRollUp endpoints.
-
-    Args:
-        credentials:   Valid Google OAuth2 credentials.
-        data_type_id:  The Google Health API data type ID string.
-        date_range:    {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-        context:       Caller name for error logging.
-
-    Returns:
-        Raw list of point dicts from the API response.
-    """
-    body = {
-        "dataTypeId": data_type_id,
-        "startDate": date_range["start_date"],   # Civil time format: YYYY-MM-DD
-        "endDate": date_range["end_date"],         # Civil time format: YYYY-MM-DD
-    }
-    response = requests.post(
-        HEALTH_METRICS_ROLLUP_URL,
-        headers=_get_auth_headers(credentials),
-        json=body,
-        timeout=30,
-    )
-    if not _handle_response_errors(response, context):
-        return []
-
-    data = response.json()
-    return data.get("dataPoint", data.get("point", data.get("rollUp", [])))
-
+    points = data.get("dataPoints", [])
+    
+    normalized = []
+    for pt in points:
+        steps_data = pt.get("steps", {})
+        ts = steps_data.get("interval", {}).get("startTime")
+        val = steps_data.get("count")
+        if ts and val is not None:
+            normalized.append({
+                "timestamp": ts,
+                "value": float(val),
+                "data_type": "STEPS"
+            })
+            
+    logger.info(f"fetch_steps: {len(normalized)} points returned.")
+    return normalized
 
 def fetch_daily_hrv(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
-    """
-    Fetch daily HRV aggregate via POST /healthMetricsAndMeasurements:dailyRollUp.
-
-    Args:
-        credentials: Valid Google OAuth2 credentials.
-        date_range:  {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-
-    Returns:
-        list[dict]: [{"timestamp": "YYYY-MM-DD", "value": float (RMSSD ms),
-                      "data_type": "DAILY_HEART_RATE_VARIABILITY"}]
-    """
-    points = _post_daily_rollup(
-        credentials, "DAILY_HEART_RATE_VARIABILITY", date_range, "fetch_daily_hrv"
+    """Fetch daily HRV aggregate via GET users/me/dataTypes/daily-heart-rate-variability/dataPoints."""
+    url = f"{BASE_URL}/users/me/dataTypes/daily-heart-rate-variability/dataPoints"
+    response = requests.get(
+        url,
+        headers=_get_auth_headers(credentials),
+        params={"pageSize": 100},
+        timeout=30,
     )
-    logger.info(f"fetch_daily_hrv: {len(points)} records returned.")
-    return _normalize_response(points, "DAILY_HEART_RATE_VARIABILITY")
+    if not _handle_response_errors(response, "fetch_daily_hrv"):
+        return []
 
+    data = response.json()
+    points = data.get("dataPoints", [])
+    
+    normalized = []
+    for pt in points:
+        hrv_data = pt.get("dailyHeartRateVariability", {})
+        date_str = _parse_date(hrv_data.get("date", {}))
+        
+        # Client-side date range filter
+        if date_range["start_date"] <= date_str <= date_range["end_date"]:
+            val = hrv_data.get("averageHeartRateVariabilityMilliseconds")
+            if val is not None:
+                normalized.append({
+                    "timestamp": date_str,
+                    "value": float(val),
+                    "data_type": "DAILY_HEART_RATE_VARIABILITY"
+                })
+                
+    normalized.sort(key=lambda x: x["timestamp"])
+    logger.info(f"fetch_daily_hrv: {len(normalized)} records returned.")
+    return normalized
 
 def fetch_daily_spo2(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
-    """
-    Fetch daily SpO2 aggregate via POST /healthMetricsAndMeasurements:dailyRollUp.
-
-    Args:
-        credentials: Valid Google OAuth2 credentials.
-        date_range:  {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-
-    Returns:
-        list[dict]: [{"timestamp": "YYYY-MM-DD", "value": float (%),
-                      "data_type": "DAILY_OXYGEN_SATURATION"}]
-    """
-    points = _post_daily_rollup(
-        credentials, "DAILY_OXYGEN_SATURATION", date_range, "fetch_daily_spo2"
+    """Fetch daily SpO2 aggregate via GET users/me/dataTypes/daily-oxygen-saturation/dataPoints."""
+    url = f"{BASE_URL}/users/me/dataTypes/daily-oxygen-saturation/dataPoints"
+    response = requests.get(
+        url,
+        headers=_get_auth_headers(credentials),
+        params={"pageSize": 100},
+        timeout=30,
     )
-    logger.info(f"fetch_daily_spo2: {len(points)} records returned.")
-    return _normalize_response(points, "DAILY_OXYGEN_SATURATION")
+    if not _handle_response_errors(response, "fetch_daily_spo2"):
+        return []
 
+    data = response.json()
+    points = data.get("dataPoints", [])
+    
+    normalized = []
+    for pt in points:
+        spo2_data = pt.get("dailyOxygenSaturation", {})
+        date_str = _parse_date(spo2_data.get("date", {}))
+        
+        if date_range["start_date"] <= date_str <= date_range["end_date"]:
+            val = spo2_data.get("averagePercentage")
+            if val is not None:
+                normalized.append({
+                    "timestamp": date_str,
+                    "value": float(val),
+                    "data_type": "DAILY_OXYGEN_SATURATION"
+                })
+                
+    normalized.sort(key=lambda x: x["timestamp"])
+    logger.info(f"fetch_daily_spo2: {len(normalized)} records returned.")
+    return normalized
 
 def fetch_daily_resting_hr(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
-    """
-    Fetch daily resting heart rate via POST /healthMetricsAndMeasurements:dailyRollUp.
-
-    Args:
-        credentials: Valid Google OAuth2 credentials.
-        date_range:  {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-
-    Returns:
-        list[dict]: [{"timestamp": "YYYY-MM-DD", "value": float (bpm),
-                      "data_type": "DAILY_RESTING_HEART_RATE"}]
-    """
-    points = _post_daily_rollup(
-        credentials, "DAILY_RESTING_HEART_RATE", date_range, "fetch_daily_resting_hr"
+    """Fetch daily resting heart rate via GET users/me/dataTypes/daily-resting-heart-rate/dataPoints."""
+    url = f"{BASE_URL}/users/me/dataTypes/daily-resting-heart-rate/dataPoints"
+    response = requests.get(
+        url,
+        headers=_get_auth_headers(credentials),
+        params={"pageSize": 100},
+        timeout=30,
     )
-    logger.info(f"fetch_daily_resting_hr: {len(points)} records returned.")
-    return _normalize_response(points, "DAILY_RESTING_HEART_RATE")
+    if not _handle_response_errors(response, "fetch_daily_resting_hr"):
+        return []
 
+    data = response.json()
+    points = data.get("dataPoints", [])
+    
+    normalized = []
+    for pt in points:
+        rhr_data = pt.get("dailyRestingHeartRate", {})
+        date_str = _parse_date(rhr_data.get("date", {}))
+        
+        if date_range["start_date"] <= date_str <= date_range["end_date"]:
+            val = rhr_data.get("beatsPerMinute")
+            if val is not None:
+                normalized.append({
+                    "timestamp": date_str,
+                    "value": float(val),
+                    "data_type": "DAILY_RESTING_HEART_RATE"
+                })
+                
+    normalized.sort(key=lambda x: x["timestamp"])
+    logger.info(f"fetch_daily_resting_hr: {len(normalized)} records returned.")
+    return normalized
 
 def fetch_sleep_temp(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
-    """
-    Fetch daily sleep temperature deviations via POST dailyRollUp.
-
-    NOTE: DAILY_SLEEP_TEMPERATURE_DERIVATIONS is not confirmed as supported
-    in the public v4 API documentation. If the endpoint returns 404 or an
-    empty response, a WARNING is logged and an empty list is returned.
-    The SKIN_TEMP_AVAILABLE flag in .env controls whether this is attempted.
-
-    Args:
-        credentials: Valid Google OAuth2 credentials.
-        date_range:  {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-
-    Returns:
-        list[dict]: [{"timestamp": "YYYY-MM-DD", "value": float (°C deviation),
-                      "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"}]
-        Returns [] if the data type is unavailable or SKIN_TEMP_AVAILABLE=false.
-    """
+    """Fetch daily sleep temperature deviations via GET users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints."""
     if not SKIN_TEMP_AVAILABLE:
         logger.info("fetch_sleep_temp: SKIN_TEMP_AVAILABLE=false — skipping.")
         return []
 
-    try:
-        body = {
-            "dataTypeId": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS",
-            "startDate": date_range["start_date"],
-            "endDate": date_range["end_date"],
-        }
-        response = requests.post(
-            HEALTH_METRICS_ROLLUP_URL,
-            headers=_get_auth_headers(credentials),
-            json=body,
-            timeout=30,
-        )
-
-        if response.status_code == 404:
-            logger.warning(
-                "fetch_sleep_temp: 404 — DAILY_SLEEP_TEMPERATURE_DERIVATIONS is not "
-                "available for this account. Returning empty list."
-            )
-            return []
-
-        if not response.ok:
-            logger.warning(
-                f"fetch_sleep_temp: HTTP {response.status_code} — skin temperature "
-                "data unavailable. Returning empty list."
-            )
-            return []
-
-        data = response.json()
-        points = data.get("dataPoint", data.get("point", data.get("rollUp", [])))
-
-        if not points:
-            logger.warning(
-                "fetch_sleep_temp: API returned an empty response for "
-                "DAILY_SLEEP_TEMPERATURE_DERIVATIONS. Skin temperature may not be "
-                "tracked on this device."
-            )
-            return []
-
-        logger.info(f"fetch_sleep_temp: {len(points)} records returned.")
-        return _normalize_response(points, "DAILY_SLEEP_TEMPERATURE_DERIVATIONS")
-
-    except Exception as e:
-        logger.warning(
-            f"fetch_sleep_temp: Unexpected error ({e}). Returning empty list."
-        )
+    url = f"{BASE_URL}/users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints"
+    response = requests.get(
+        url,
+        headers=_get_auth_headers(credentials),
+        params={"pageSize": 100},
+        timeout=30,
+    )
+    if response.status_code == 404:
+        logger.warning("fetch_sleep_temp: 404 — daily-sleep-temperature-derivations not available.")
+        return []
+        
+    if not _handle_response_errors(response, "fetch_sleep_temp"):
         return []
 
+    data = response.json()
+    points = data.get("dataPoints", [])
+    
+    normalized = []
+    for pt in points:
+        temp_data = pt.get("dailySleepTemperatureDerivations", {})
+        date_str = _parse_date(temp_data.get("date", {}))
+        
+        if date_range["start_date"] <= date_str <= date_range["end_date"]:
+            # Default to nightlyTemperatureCelsius deviation or raw
+            val = temp_data.get("nightlyTemperatureCelsius")
+            if val is not None:
+                # Calculate deviation relative to a baseline if raw is returned, or use directly
+                # If baseline is NaN, we return the value directly
+                normalized.append({
+                    "timestamp": date_str,
+                    "value": float(val),
+                    "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"
+                })
+                
+    normalized.sort(key=lambda x: x["timestamp"])
+    logger.info(f"fetch_sleep_temp: {len(normalized)} records returned.")
+    return normalized
 
 def fetch_sleep(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
-    """
-    Fetch sleep sessions and stages via POST /sleep:query.
-
-    Uses the sleep-specific endpoint, separate from the healthMetricsAndMeasurements
-    resource.
-
-    Args:
-        credentials: Valid Google OAuth2 credentials.
-        date_range:  {"start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD"}
-
-    Returns:
-        list[dict]: [
-            {
-                "timestamp": "YYYY-MM-DD",        # date of the sleep session
-                "value": {
-                    "total_sleep_minutes": float,
-                    "stages": {
-                        "light": float,
-                        "deep": float,
-                        "rem": float,
-                        "awake": float,
-                    }
-                },
-                "data_type": "SLEEP"
-            }
-        ]
-    """
-    body = {
-        "startDate": date_range["start_date"],
-        "endDate": date_range["end_date"],
-    }
-    response = requests.post(
-        SLEEP_URL,
+    """Fetch sleep sessions and stages via GET users/me/dataTypes/sleep/dataPoints."""
+    url = f"{BASE_URL}/users/me/dataTypes/sleep/dataPoints"
+    response = requests.get(
+        url,
         headers=_get_auth_headers(credentials),
-        json=body,
+        params={"pageSize": 50},
         timeout=30,
     )
     if not _handle_response_errors(response, "fetch_sleep"):
         return []
 
     data = response.json()
-    sessions = data.get("session", data.get("sessions", data.get("sleepSessions", [])))
+    points = data.get("dataPoints", [])
 
     normalized = []
-    for session in sessions:
-        # Extract date from session start time
-        start_raw = session.get("startTime") or session.get("startDate")
-        if isinstance(start_raw, str) and "T" in start_raw:
-            date_str = start_raw[:10]
-        elif isinstance(start_raw, int):
-            date_str = datetime.fromtimestamp(
-                start_raw / 1000, tz=timezone.utc
-            ).strftime("%Y-%m-%d")
-        else:
-            date_str = str(start_raw)[:10]
-
-        # Extract total duration and stage breakdown
-        total_minutes = session.get("totalSleepMinutes") or session.get("durationMinutes")
-        stages_raw = session.get("stages", session.get("stageSummary", {}))
-
-        if total_minutes is None:
-            # Derive from start/end timestamps if not provided directly
-            end_raw = session.get("endTime") or session.get("endDate")
-            if start_raw and end_raw:
-                try:
-                    start_ms = int(start_raw) if isinstance(start_raw, int) else (
-                        int(datetime.fromisoformat(str(start_raw)).timestamp() * 1000)
-                    )
-                    end_ms = int(end_raw) if isinstance(end_raw, int) else (
-                        int(datetime.fromisoformat(str(end_raw)).timestamp() * 1000)
-                    )
-                    total_minutes = (end_ms - start_ms) / 60000
-                except (ValueError, TypeError):
-                    total_minutes = 0.0
-            else:
-                total_minutes = 0.0
-
-        normalized.append({
-            "timestamp": date_str,
-            "value": {
-                "total_sleep_minutes": float(total_minutes or 0),
-                "stages": {
-                    "light": float(stages_raw.get("light", stages_raw.get("LIGHT", 0))),
-                    "deep": float(stages_raw.get("deep", stages_raw.get("DEEP", 0))),
-                    "rem": float(stages_raw.get("rem", stages_raw.get("REM", 0))),
-                    "awake": float(stages_raw.get("awake", stages_raw.get("AWAKE", 0))),
+    for pt in points:
+        sleep_data = pt.get("sleep", {})
+        interval = sleep_data.get("interval", {})
+        start_time_str = interval.get("startTime", "")
+        
+        if not start_time_str:
+            continue
+            
+        date_str = start_time_str[:10]  # Get YYYY-MM-DD
+        
+        if date_range["start_date"] <= date_str <= date_range["end_date"]:
+            summary = sleep_data.get("summary", {})
+            minutes_asleep = float(summary.get("minutesAsleep") or 0)
+            
+            # Map stages list to stages dict
+            stages_list = sleep_data.get("stages", [])
+            stages_summary = summary.get("stagesSummary", [])
+            
+            stage_durations = {
+                "light": 0.0,
+                "deep": 0.0,
+                "rem": 0.0,
+                "awake": 0.0
+            }
+            
+            for stage_item in stages_summary:
+                stype = stage_item.get("type", "").lower()
+                mval = float(stage_item.get("minutes") or 0)
+                if stype in stage_durations:
+                    stage_durations[stype] = mval
+            
+            normalized.append({
+                "timestamp": date_str,
+                "value": {
+                    "total_sleep_minutes": minutes_asleep,
+                    "stages": stage_durations,
                 },
-            },
-            "data_type": "SLEEP",
-        })
+                "data_type": "SLEEP"
+            })
 
+    normalized.sort(key=lambda x: x["timestamp"])
     logger.info(f"fetch_sleep: {len(normalized)} sleep sessions returned.")
     return normalized
