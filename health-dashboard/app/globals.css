@@ -17,7 +17,6 @@ body {
 /* Custom premium glow effects and animations */
 .glow-card {
   position: relative;
-  overflow: hidden;
 }
 
 .glow-card::before {

@@ -10,6 +10,7 @@ CORS is configured to allow requests from http://localhost:3000 (Next.js dev ser
 Run with: uvicorn main:app --reload --port 8000
 """
 
+import json
 import logging
 import os
 from datetime import datetime, timezone
@@ -116,7 +117,89 @@ class SyncRequest(BaseModel):
         return v
 
 
+class SettingsRequest(BaseModel):
+    client_id: str
+    client_secret: str
+    age: int
+    max_hr: float
+    resting_hr: float
+    target_sleep_hours: float
+
+
 # ─── Routes ───────────────────────────────────────────────────────────────────
+
+@app.post("/api/settings", summary="Update GCP credentials and user baselines")
+async def update_settings(body: SettingsRequest) -> JSONResponse:
+    # 1. Update credentials.json
+    try:
+        creds_data = {
+            "installed": {
+                "client_id": body.client_id,
+                "client_secret": body.client_secret,
+                "project_id": "fitbit-air-dashboard-499709",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "redirect_uris": ["http://localhost"]
+            }
+        }
+        from auth import CREDENTIALS_PATH, TOKEN_PATH
+        with open(CREDENTIALS_PATH, "w") as f:
+            json.dump(creds_data, f, indent=2)
+        logger.info("Updated credentials.json with new GCP client ID/secret.")
+    except Exception as e:
+        logger.error(f"Failed to update credentials.json: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update credentials.json: {str(e)}")
+
+    # 2. Update .env file / environment variables
+    try:
+        env_lines = []
+        if os.path.exists(".env"):
+            with open(".env", "r") as f:
+                env_lines = f.readlines()
+        
+        def update_env_var(lines, key, val):
+            found = False
+            for i, line in enumerate(lines):
+                if line.strip().startswith(f"{key}="):
+                    lines[i] = f"{key}={val}\n"
+                    found = True
+                    break
+            if not found:
+                lines.append(f"{key}={val}\n")
+        
+        update_env_var(env_lines, "USER_MAX_HR", body.max_hr)
+        update_env_var(env_lines, "USER_RESTING_HR", body.resting_hr)
+        update_env_var(env_lines, "USER_TARGET_SLEEP_HOURS", body.target_sleep_hours)
+        
+        with open(".env", "w") as f:
+            f.writelines(env_lines)
+            
+        # Update current runtime variables
+        global USER_MAX_HR, USER_RESTING_HR, USER_TARGET_SLEEP_HOURS
+        USER_MAX_HR = body.max_hr
+        USER_RESTING_HR = body.resting_hr
+        USER_TARGET_SLEEP_HOURS = body.target_sleep_hours
+        
+        logger.info("Updated .env and runtime user physiological baselines.")
+    except Exception as e:
+        logger.error(f"Failed to update .env: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update .env: {str(e)}")
+
+    # 3. Clear/validate token if client_id changed
+    try:
+        from auth import TOKEN_PATH
+        if os.path.exists(TOKEN_PATH):
+            with open(TOKEN_PATH, "r") as f:
+                token_data = json.load(f)
+            if token_data.get("client_id") != body.client_id:
+                os.remove(TOKEN_PATH)
+                logger.info("Client ID changed. Deleted old token.json.")
+    except Exception as e:
+        logger.warning(f"Failed to inspect/delete old token.json: {e}")
+
+    return JSONResponse(content={"status": "success", "message": "Settings updated successfully."})
+
 
 @app.get("/api/status", summary="OAuth token status and scope info")
 async def get_status() -> JSONResponse:

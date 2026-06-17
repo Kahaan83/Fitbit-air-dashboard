@@ -81,7 +81,21 @@ Fitbit_Air_dashboard/
 
 ---
 
-### 2. Backend Setup
+### 2. One-Click Startup (Recommended for Windows)
+
+For an automated setup and startup experience, simply do the following:
+
+1. Place the downloaded `credentials.json` inside the **`google-health-service/`** directory.
+2. Double-click the **`start_dashboard.bat`** script at the root of the project workspace.
+   * This script will automatically create the Python virtual environment, install dependencies for both the backend and frontend, launch both servers, and open `http://localhost:3000` in your web browser.
+
+---
+
+### 3. Manual Developer Startup (Alternative)
+
+If you prefer to start the servers manually in separate terminal windows, follow these steps:
+
+#### Step A: Backend Setup
 
 ```bash
 cd google-health-service
@@ -112,7 +126,7 @@ INFO:     Application startup complete.
 
 ---
 
-### 3. Frontend Setup
+#### Step B: Frontend Setup
 
 Open a **second terminal**:
 
