@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
+import { MetricInfo } from "@/components/MetricInfo";
 
 export function NocturnalSpO2Chart() {
   const { spo2Nocturnal } = useChartData();
@@ -49,7 +50,10 @@ export function NocturnalSpO2Chart() {
     >
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h3 className="text-base font-bold text-white">Nocturnal Oxygen Saturation (SpO2)</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-base font-bold text-white">Nocturnal Oxygen Saturation (SpO2)</h3>
+            <MetricInfo metricKey="spo2" />
+          </div>
           <p className="text-xs text-slate-400">Continuous 5-minute resolution during sleep</p>
         </div>
 

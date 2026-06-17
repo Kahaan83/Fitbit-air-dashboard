@@ -13,6 +13,7 @@ import {
   Cell,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
+import { MetricInfo } from "@/components/MetricInfo";
 
 export function ANSBalanceChart() {
   const { ansBalance } = useChartData();
@@ -42,7 +43,10 @@ export function ANSBalanceChart() {
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-white">ANS Autonomic Balance</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-base font-bold text-white">ANS Autonomic Balance</h3>
+            <MetricInfo metricKey="lf_hf_ratio" />
+          </div>
           <p className="text-xs text-slate-400">Low-Frequency (Sympathetic) / High-Frequency (Parasympathetic) Power Ratio</p>
         </div>
         <div className="flex gap-4 text-xs font-semibold">

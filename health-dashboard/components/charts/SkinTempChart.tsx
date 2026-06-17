@@ -13,6 +13,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
+import { MetricInfo } from "@/components/MetricInfo";
 
 export function SkinTempChart() {
   const { skinTemp } = useChartData();
@@ -37,7 +38,10 @@ export function SkinTempChart() {
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-white">Sleep Skin Temperature Deviation</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-base font-bold text-white">Sleep Skin Temperature Deviation</h3>
+            <MetricInfo metricKey="sleep_temp_deviation" />
+          </div>
           <p className="text-xs text-slate-400">Nightly variation relative to 7-day personal baseline (°C)</p>
         </div>
         <div className="flex gap-4 text-xs font-semibold">

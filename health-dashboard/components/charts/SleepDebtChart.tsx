@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
 import { useDashboardStore } from "@/lib/store";
+import { MetricInfo } from "@/components/MetricInfo";
 
 export function SleepDebtChart() {
   const { sleepDebt } = useChartData();
@@ -51,7 +52,10 @@ export function SleepDebtChart() {
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-white">Sleep Duration & Deficit</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-base font-bold text-white">Sleep Duration & Deficit</h3>
+            <MetricInfo metricKey="sleep_debt" />
+          </div>
           <p className="text-xs text-slate-400">Nightly sleep hours vs. target ({target}h)</p>
         </div>
         <div className="flex gap-4 text-xs font-semibold">

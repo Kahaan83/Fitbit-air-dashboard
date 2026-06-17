@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
 import { Activity, ShieldCheck, Heart, Moon, Thermometer, Settings as SettingsIcon, Database, RefreshCw } from "lucide-react";
+import { MetricInfo } from "@/components/MetricInfo";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -12,8 +13,9 @@ interface HeaderProps {
 
 export function Header({ onOpenSettings }: HeaderProps) {
   const pathname = usePathname();
-  const { dataMode, lastSync, liveData, setLiveData, setLastSync } = useDashboardStore();
+  const { dataMode, setDataMode, lastSync, liveData, setLiveData, setLastSync } = useDashboardStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   const handleRefresh = async () => {
     if (dataMode !== "live") return;
@@ -31,6 +33,37 @@ export function Header({ onOpenSettings }: HeaderProps) {
       alert("Backend is offline.");
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleToggleMode = async () => {
+    if (dataMode === "live") {
+      setDataMode("sample");
+      alert("Switched to Sample Data Mode.");
+    } else {
+      setIsToggling(true);
+      try {
+        const statusRes = await fetch("/api/status");
+        if (!statusRes.ok) throw new Error("Backend offline");
+        const statusData = await statusRes.json();
+        
+        if (statusData.token_valid) {
+          const liveRes = await fetch("/api/live-data");
+          if (!liveRes.ok) throw new Error("Failed to fetch live data");
+          const livePayload = await liveRes.json();
+          
+          setLiveData(livePayload);
+          setLastSync(new Date().toISOString());
+          setDataMode("live");
+          alert("Connected — Live Data Mode active! Successfully synced physiological measurements.");
+        } else {
+          alert("No valid Google OAuth token found. Please click 'Settings' to configure credentials and sign in first.");
+        }
+      } catch (err) {
+        alert("Cannot connect to Google Health Gateway. Make sure your Python server is running on port 8000.");
+      } finally {
+        setIsToggling(false);
+      }
     }
   };
 
@@ -178,21 +211,30 @@ export function Header({ onOpenSettings }: HeaderProps) {
               </button>
             )}
 
-            {/* Connection badge */}
-            <div
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition-all duration-300 ${
+            {/* Connection / Toggle Switch */}
+            <button
+              onClick={handleToggleMode}
+              disabled={isToggling}
+              className={`relative inline-flex h-8 w-32 items-center rounded-full border px-1 text-[10px] font-bold tracking-wide transition-all duration-300 ${
                 dataMode === "live"
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_-3px_rgba(16,185,129,0.2)]"
-                  : "bg-slate-800/80 border-slate-700 text-slate-400"
-              }`}
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_-3px_rgba(16,185,129,0.25)] hover:bg-emerald-500/20 cursor-pointer"
+                  : "bg-slate-800/80 border-slate-700 hover:bg-slate-700/80 text-slate-400 cursor-pointer"
+              } disabled:opacity-50`}
+              title="Click to toggle between Mock and Live Google Health API data"
             >
               <span
-                className={`h-1.5 w-1.5 rounded-full animate-pulse ${
-                  dataMode === "live" ? "bg-emerald-400" : "bg-slate-400"
-                }`}
+                className={`absolute h-6 w-6 rounded-full transition-all duration-300 flex items-center justify-center ${
+                  dataMode === "live"
+                    ? "right-1 bg-emerald-500 shadow-md shadow-emerald-500/50"
+                    : "left-1 bg-slate-600"
+                } ${isToggling ? "animate-pulse" : ""}`}
               />
-              {dataMode === "live" ? "Live Data" : "Sample Data"}
-            </div>
+              <span className={`w-full text-center transition-opacity duration-300 ${
+                dataMode === "live" ? "pr-6 text-emerald-300" : "pl-6 text-slate-300"
+              }`}>
+                {isToggling ? "SYNC..." : dataMode === "live" ? "LIVE DATA" : "SAMPLE DATA"}
+              </span>
+            </button>
           </div>
         </div>
       </div>
@@ -204,10 +246,10 @@ export function Header({ onOpenSettings }: HeaderProps) {
             <span className="text-slate-500 font-medium">Physiological Data Streams:</span>
             <div className="flex flex-wrap gap-4 sm:gap-6">
               {[
-                { name: "Heart Rate", icon: Heart },
-                { name: "HRV", icon: Activity },
-                { name: "SpO2", icon: Moon },
-                { name: "Skin Temp", icon: Thermometer },
+                { name: "Heart Rate", icon: Heart, key: "heart_rate" },
+                { name: "HRV", icon: Activity, key: "hrv" },
+                { name: "SpO2", icon: Moon, key: "spo2" },
+                { name: "Skin Temp", icon: Thermometer, key: "skin_temp" },
               ].map((stream) => {
                 const StreamIcon = stream.icon;
                 const dotColor = getQualityColor(stream.name);
@@ -215,7 +257,10 @@ export function Header({ onOpenSettings }: HeaderProps) {
                   <div key={stream.name} className="flex items-center gap-2 text-slate-300 font-mono">
                     <span className={`h-2 w-2 rounded-full shadow-md ${dotColor}`} />
                     <StreamIcon className="h-3.5 w-3.5 text-slate-500" />
-                    <span>{stream.name}</span>
+                    <div className="flex items-center gap-1">
+                      <span>{stream.name}</span>
+                      <MetricInfo metricKey={stream.key} size="sm" />
+                    </div>
                     <span
                       className={`font-bold tabular-nums ${
                         dataMode === "live" ? "text-emerald-400" : "text-slate-300"
