@@ -192,6 +192,38 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  // Elevate parent stacking context when tooltip is open to prevent clipping by other cards
+  useEffect(() => {
+    if (!ref.current) return;
+    
+    let parent = ref.current.parentElement;
+    while (parent) {
+      // Find the closest card container: either a .glow-card or a card-like div
+      if (
+        parent.classList.contains("glow-card") ||
+        parent.classList.contains("rounded-2xl") ||
+        (parent.tagName === "DIV" && (parent.className.includes("border") || parent.className.includes("bg-slate")))
+      ) {
+        if (open) {
+          parent.style.zIndex = "40";
+          parent.style.position = "relative";
+        } else {
+          parent.style.zIndex = "";
+          parent.style.position = "";
+        }
+        break;
+      }
+      parent = parent.parentElement;
+    }
+    
+    return () => {
+      if (parent) {
+        parent.style.zIndex = "";
+        parent.style.position = "";
+      }
+    };
+  }, [open]);
+
   if (!def) return null;
 
   const iconSize = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
@@ -209,7 +241,7 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
 
       {open && (
         <div
-          className="absolute z-50 left-6 top-0 w-80 rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-xl shadow-2xl shadow-black/60 p-5 text-sm"
+          className="absolute z-50 right-0 top-6 mt-1 w-80 rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-xl shadow-2xl shadow-black/60 p-5 text-sm"
           style={{ minWidth: "300px" }}
           onClick={(e) => e.stopPropagation()}
         >

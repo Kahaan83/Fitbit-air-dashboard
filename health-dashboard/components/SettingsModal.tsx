@@ -37,17 +37,37 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     e.preventDefault();
     setLoading(true);
 
-    // Save to Zustand store settings configuration
-    updateSettings({
-      clientId,
-      clientSecret,
-      age,
-      maxHR,
-      restingHR,
-      targetSleepHours,
-    });
-
     try {
+      // 1. Send settings/credentials to the backend
+      const settingsRes = await fetch("/api/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          clientId,
+          clientSecret,
+          age,
+          maxHR,
+          restingHR,
+          targetSleepHours,
+        }),
+      });
+
+      if (!settingsRes.ok) {
+        throw new Error("Failed to save settings to Python gateway.");
+      }
+
+      // Save to Zustand store settings configuration
+      updateSettings({
+        clientId,
+        clientSecret,
+        age,
+        maxHR,
+        restingHR,
+        targetSleepHours,
+      });
+
       console.log("Checking OAuth token status...");
       const statusRes = await fetch("/api/status");
       const statusData = await statusRes.json();
@@ -79,7 +99,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     } catch (err: any) {
       console.error("Connection error:", err);
       alert(
-        "Could not connect to Google Health Gateway.\n\nPlease verify that the FastAPI backend is running on http://127.0.0.1:8000 and that you have completed the OAuth flow."
+        `Could not connect to Google Health Gateway.\n\nError: ${err.message}\n\nPlease verify that the FastAPI backend is running on http://127.0.0.1:8000 and that you have completed the OAuth flow.`
       );
       setDataMode("sample");
     } finally {
