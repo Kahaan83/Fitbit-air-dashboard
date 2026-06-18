@@ -5,6 +5,7 @@ import HRVTrendChart from "@/components/charts/HRVTrendChart";
 import VO2MaxChart from "@/components/charts/VO2MaxChart";
 import AcuteStressHeatmap from "@/components/charts/AcuteStressHeatmap";
 import { MetricInfo } from "@/components/MetricInfo";
+import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { Activity, Zap, TrendingUp } from "lucide-react";
 import { useChartData } from "@/lib/useChartData";
 
@@ -97,13 +98,19 @@ export default function OverviewPage() {
 
       {/* Main Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <HRVTrendChart />
-        <VO2MaxChart />
+        <ChartErrorBoundary name="Heart Rate Variability Trend">
+          <HRVTrendChart />
+        </ChartErrorBoundary>
+        <ChartErrorBoundary name="VO2 Max Trend">
+          <VO2MaxChart />
+        </ChartErrorBoundary>
       </div>
 
       {/* Full-width Heatmap grid */}
       <div className="w-full">
-        <AcuteStressHeatmap />
+        <ChartErrorBoundary name="Acute Stress Heatmap">
+          <AcuteStressHeatmap />
+        </ChartErrorBoundary>
       </div>
     </div>
   );
