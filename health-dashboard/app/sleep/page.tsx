@@ -8,9 +8,12 @@ import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { MetricInfo } from "@/components/MetricInfo";
 import { Moon, ShieldAlert, Award, Activity } from "lucide-react";
 import DataStreamsStrip from "@/components/DataStreamsStrip";
+import { SkeletonCard, SkeletonChart } from "@/components/Skeleton";
+import { useDashboardStore } from "@/lib/store";
 
 export default function SleepPage() {
   const { sleepDebt, spo2Nocturnal, remPct, goodSleepStreak, avgDeepSleep } = useChartData();
+  const { dataMode, isLoadingLiveData } = useDashboardStore();
 
   // Compute sleep summary metrics
   const avgSlept = (sleepDebt.reduce((acc: number, curr: any) => acc + curr.actual_hours, 0) / sleepDebt.length) || 0;
@@ -35,7 +38,14 @@ export default function SleepPage() {
 
       {/* Summary Scorecards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Metric 1: Average Sleep Duration */}
+        {dataMode === "live" && isLoadingLiveData ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : (
+          <>
         <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
@@ -97,11 +107,20 @@ export default function SleepPage() {
             </span>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Summary Scorecards Second Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Card 1: REM % */}
+        {dataMode === "live" && isLoadingLiveData ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : (
+          <>
         <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
@@ -164,16 +183,27 @@ export default function SleepPage() {
             </span>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Sleep Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartErrorBoundary name="Nocturnal SpO2 Levels">
-          <NocturnalSpO2Chart />
-        </ChartErrorBoundary>
-        <ChartErrorBoundary name="Sleep Debt Accumulation">
-          <SleepDebtChart />
-        </ChartErrorBoundary>
+        {dataMode === "live" && isLoadingLiveData ? (
+          <>
+            <SkeletonChart />
+            <SkeletonChart />
+          </>
+        ) : (
+          <>
+            <ChartErrorBoundary name="Nocturnal SpO2 Levels">
+              <NocturnalSpO2Chart />
+            </ChartErrorBoundary>
+            <ChartErrorBoundary name="Sleep Debt Accumulation">
+              <SleepDebtChart />
+            </ChartErrorBoundary>
+          </>
+        )}
       </div>
     </div>
   );

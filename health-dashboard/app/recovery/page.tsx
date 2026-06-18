@@ -8,9 +8,12 @@ import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { MetricInfo } from "@/components/MetricInfo";
 import { Activity, ShieldCheck, Thermometer } from "lucide-react";
 import DataStreamsStrip from "@/components/DataStreamsStrip";
+import { SkeletonCard, SkeletonChart } from "@/components/Skeleton";
+import { useDashboardStore } from "@/lib/store";
 
 export default function RecoveryPage() {
   const { ansBalance, skinTemp } = useChartData();
+  const { dataMode, isLoadingLiveData } = useDashboardStore();
 
   // Compute brief summary metrics
   const avgLFHF = (ansBalance.reduce((acc: number, curr: any) => acc + curr.lf_hf_ratio, 0) / ansBalance.length) || 0;
@@ -29,7 +32,13 @@ export default function RecoveryPage() {
 
       {/* Summary Scorecards Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Metric 1: Average LF/HF Ratio */}
+        {dataMode === "live" && isLoadingLiveData ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : (
+          <>
         <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
@@ -70,16 +79,27 @@ export default function RecoveryPage() {
             </span>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Charts Display */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartErrorBoundary name="Autonomic Nervous System Balance">
-          <ANSBalanceChart />
-        </ChartErrorBoundary>
-        <ChartErrorBoundary name="Skin Temperature Deviation">
-          <SkinTempChart />
-        </ChartErrorBoundary>
+        {dataMode === "live" && isLoadingLiveData ? (
+          <>
+            <SkeletonChart />
+            <SkeletonChart />
+          </>
+        ) : (
+          <>
+            <ChartErrorBoundary name="Autonomic Nervous System Balance">
+              <ANSBalanceChart />
+            </ChartErrorBoundary>
+            <ChartErrorBoundary name="Skin Temperature Deviation">
+              <SkinTempChart />
+            </ChartErrorBoundary>
+          </>
+        )}
       </div>
     </div>
   );
