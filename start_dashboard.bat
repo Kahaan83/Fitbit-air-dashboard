@@ -50,7 +50,7 @@ echo.
 
 :: 6. Launch Backend in a separate window
 echo Launching Google Health API Gateway (FastAPI) on port 8000...
-start "Fitbit Air Backend" cmd /c "cd google-health-service && venv\Scripts\activate && uvicorn main:app --port 8000"
+start "Fitbit Air Backend" cmd /c "cd google-health-service && venv\Scripts\activate && uvicorn main:app --reload --port 8000"
 
 :: 7. Open Browser
 echo Opening dashboard in your browser...

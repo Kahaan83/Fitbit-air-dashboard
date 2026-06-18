@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), 10000); // 10-second timeout
+  const id = setTimeout(() => controller.abort(), 120000); // 120-second (2-minute) timeout to allow browser OAuth completion
 
   try {
     const res = await fetch("http://127.0.0.1:8000/api/health-data", {
@@ -30,7 +30,7 @@ export async function GET() {
       {
         error: "backend_unavailable",
         message: error.name === "AbortError" 
-          ? "Request to the Python service timed out after 10 seconds."
+          ? "Request to the Python service timed out after 120 seconds. Please complete the browser OAuth flow within 2 minutes."
           : "The local Python gateway service is not running on port 8000.",
       },
       { status: 503 }

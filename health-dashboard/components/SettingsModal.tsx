@@ -58,7 +58,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       });
 
       if (!settingsRes.ok) {
-        throw new Error("Failed to save settings to Python gateway.");
+        let errMsg = "Failed to save settings to Python gateway.";
+        try {
+          const errData = await settingsRes.json();
+          if (errData && errData.message) {
+            errMsg = errData.message;
+          }
+        } catch (_) {}
+        throw new Error(errMsg);
       }
 
       // Save to Zustand store settings configuration
@@ -82,7 +89,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         const liveRes = await fetch("/api/live-data");
         
         if (!liveRes.ok) {
-          throw new Error("Failed to extract data payload from Python gateway.");
+          let errMsg = "Failed to extract data payload from Python gateway.";
+          try {
+            const errData = await liveRes.json();
+            if (errData && errData.message) {
+              errMsg = errData.message;
+            }
+          } catch (_) {}
+          throw new Error(errMsg);
         }
         
         const livePayload = await liveRes.json();
@@ -96,11 +110,40 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         addToast("Connected — Live Data Mode active! Successfully synced physiological measurements.", "success");
         onClose();
       } else {
+        // OAuth token not found: initiate login flow by fetching live-data which starts _run_browser_consent()
         addToast(
-          "OAuth token not found or invalid. Please ensure you run the Python service (localhost:8000) and complete the browser authentication flow first.",
-          "error"
+          "OAuth token not found. Launching browser login flow. Please complete authentication in the browser window.",
+          "info"
         );
-        setDataMode("sample");
+        const liveRes = await fetch("/api/live-data");
+        
+        if (!liveRes.ok) {
+          let errMsg = "Authentication flow failed or was cancelled.";
+          try {
+            const errData = await liveRes.json();
+            if (errData && errData.message) {
+              errMsg = errData.message;
+            }
+          } catch (_) {}
+          throw new Error(errMsg);
+        }
+        
+        const livePayload = await liveRes.json();
+        
+        // Double check status to see if token is now valid
+        const nextStatusRes = await fetch("/api/status");
+        const nextStatusData = await nextStatusRes.json();
+        
+        if (nextStatusData.token_valid) {
+          const { setLiveData, setLastSync } = useDashboardStore.getState();
+          setLiveData(livePayload);
+          setLastSync(new Date().toISOString());
+          setDataMode("live");
+          addToast("Successfully connected to Google Health! Live Data Mode active.", "success");
+          onClose();
+        } else {
+          throw new Error("Google OAuth authentication flow was not completed.");
+        }
       }
     } catch (err: any) {
       console.error("Connection error:", err);

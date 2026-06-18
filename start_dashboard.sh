@@ -73,7 +73,7 @@ echo "Starting Google Health API Gateway (FastAPI) on port 8000..."
 (
   cd google-health-service
   source venv/bin/activate
-  uvicorn main:app --port 8000
+  uvicorn main:app --reload --port 8000
 ) &
 BACKEND_PID=$!
 echo "[OK] Backend launched (PID $BACKEND_PID)."

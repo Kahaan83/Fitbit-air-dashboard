@@ -134,10 +134,26 @@ class SettingsRequest(BaseModel):
 async def update_settings(body: SettingsRequest) -> JSONResponse:
     # 1. Update credentials.json
     try:
+        from auth import CREDENTIALS_PATH, TOKEN_PATH
+        existing_client_id = ""
+        existing_client_secret = ""
+        if os.path.exists(CREDENTIALS_PATH):
+            try:
+                with open(CREDENTIALS_PATH, "r") as f:
+                    old_data = json.load(f)
+                installed_data = old_data.get("installed", {})
+                existing_client_id = installed_data.get("client_id", "")
+                existing_client_secret = installed_data.get("client_secret", "")
+            except Exception:
+                pass
+
+        final_client_id = body.client_id if body.client_id.strip() else existing_client_id
+        final_client_secret = body.client_secret if body.client_secret.strip() else existing_client_secret
+
         creds_data = {
             "installed": {
-                "client_id": body.client_id,
-                "client_secret": body.client_secret,
+                "client_id": final_client_id,
+                "client_secret": final_client_secret,
                 "project_id": "fitbit-air-dashboard-499709",
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
@@ -145,10 +161,9 @@ async def update_settings(body: SettingsRequest) -> JSONResponse:
                 "redirect_uris": ["http://localhost"]
             }
         }
-        from auth import CREDENTIALS_PATH, TOKEN_PATH
         with open(CREDENTIALS_PATH, "w") as f:
             json.dump(creds_data, f, indent=2)
-        logger.info("Updated credentials.json with new GCP client ID/secret.")
+        logger.info("Updated credentials.json (retained old values if new ones were blank).")
     except Exception as e:
         logger.error(f"Failed to update credentials.json: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update credentials.json: {str(e)}")
