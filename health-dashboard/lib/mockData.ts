@@ -237,3 +237,54 @@ const generateStressEvents = (): AcuteStressEvent[] => {
 };
 
 export const mockAcuteStress = generateStressEvents();
+
+// ── Sample-mode analytics constants ───────────────────────────────────────────
+// These are realistic pre-computed values shown in sample mode.
+
+// Rolling 7-day average HRV (RMSSD) from the most recent 7 days of mock data
+export const mockHRVRolling7: number = (() => {
+  const last7 = mockHRV.slice(-7);
+  if (last7.length < 7) return 0;
+  return Math.round((last7.reduce((s, d) => s + d.value, 0) / 7) * 10) / 10;
+})();
+
+// Recovery score: clamp((latestHRV / avg30HRV) * 50 + 25, 0, 100)
+export const mockRecoveryScore: number = (() => {
+  const avg30 = mockHRV.reduce((s, d) => s + d.value, 0) / mockHRV.length;
+  const latest = mockHRV[mockHRV.length - 1]?.value ?? 0;
+  return Math.round(Math.max(0, Math.min(100, (latest / avg30) * 50 + 25)));
+})();
+
+// Peak heart rate today — sample mode uses a plausible intraday peak
+export const mockPeakHRToday: number = 118;
+
+// Sleep efficiency for the most recent night
+// actual_hours / (actual_hours + 0.5) * 100
+export const mockSleepEfficiency: number = (() => {
+  const last = mockSleepDebt[mockSleepDebt.length - 1];
+  if (!last) return 0;
+  return Math.round((last.actual_hours / (last.actual_hours + 0.5)) * 100 * 10) / 10;
+})();
+
+// REM percentage in sample mode (typical healthy adult ~20-25%)
+export const mockRemPct: number = 24.3;
+
+// Step goal hit rate: % of days in mock set with >= 10000 steps (sample mode)
+export const mockStepGoalHitRate: number = 63;
+
+// Consecutive good-sleep streak: nights with actual_hours >= 7, going back from most recent
+export const mockGoodSleepStreak: number = (() => {
+  let streak = 0;
+  for (let i = mockSleepDebt.length - 1; i >= 0; i--) {
+    if (mockSleepDebt[i].actual_hours >= 7) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+})();
+
+// Average deep sleep across sessions (sample fallback)
+export const mockAvgDeepSleep: number = 72;
+

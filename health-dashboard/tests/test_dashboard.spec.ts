@@ -15,6 +15,7 @@ test('Dashboard renders all charts in Sample Data Mode', async ({ page }) => {
   // Overview tab
   await expect(page.locator('[data-testid="hrv-chart"]')).toBeVisible();
   await expect(page.locator('[data-testid="vo2-chart"]')).toBeVisible();
+  await expect(page.locator('[data-testid="hr-zone-chart"]')).toBeVisible();
   await expect(page.locator('[data-testid="stress-heatmap"]')).toBeVisible();
 
   // Recovery tab
