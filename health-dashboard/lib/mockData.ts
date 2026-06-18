@@ -56,7 +56,7 @@ function seededRandom(seed: number): number {
 // Generate the list of dates for the last 30 days
 export const getPastDates = (numDays = 30): string[] => {
   const dates: string[] = [];
-  const baseDate = new Date("2026-06-17T12:00:00Z"); // Start from current prompt time reference
+  const baseDate = new Date();
   for (let i = numDays - 1; i >= 0; i--) {
     const d = new Date(baseDate);
     d.setUTCDate(baseDate.getUTCDate() - i);
@@ -195,7 +195,7 @@ export const mockVO2Max: VO2MaxData[] = dates.map((date, idx) => {
 // 7. Acute Stress Events (Zero steps + HR spikes, clustered in week 2)
 const generateStressEvents = (): AcuteStressEvent[] => {
   const events: AcuteStressEvent[] = [];
-  const baseDate = new Date("2026-06-17T12:00:00Z");
+  const baseDate = new Date();
   
   // Define days to seed events (index out of 30)
   const stressDays = [
