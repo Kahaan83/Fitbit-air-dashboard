@@ -45,17 +45,17 @@ export function HRVTrendChart() {
   return (
     <div
       data-testid="hrv-chart"
-      className="glow-card rounded-2xl border border-white/10 bg-slate-900/50 p-6 backdrop-blur-sm shadow-xl"
+      className="rounded-xl border border-white/8 bg-slate-900/60 p-5"
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5">
-            <h3 className="text-base font-bold text-white">HRV Recovery Trend</h3>
+            <h3 className="text-sm font-semibold text-white">HRV Recovery Trend</h3>
             <MetricInfo metricKey="hrv" />
           </div>
-          <p className="text-xs text-slate-400">Daily RMSSD (ms) — 30 Day History</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Daily RMSSD (ms) — 30 Day History</p>
         </div>
-        <div className="flex gap-4 text-xs font-semibold">
+        <div className="flex gap-3 text-xs font-medium">
           <span className="flex items-center gap-1 text-emerald-400">
             <span className="h-2 w-2 rounded-full bg-emerald-400" /> Optimal (&gt;50ms)
           </span>
@@ -76,7 +76,7 @@ export function HRVTrendChart() {
                 <stop offset={1} stopColor="#f59e0b" stopOpacity={1} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
             <XAxis
               dataKey="date"
               stroke="#64748b"
@@ -96,7 +96,7 @@ export function HRVTrendChart() {
               contentStyle={{
                 backgroundColor: "#0f172a",
                 borderColor: "rgba(255,255,255,0.1)",
-                borderRadius: "8px",
+                borderRadius: "6px",
               }}
               labelClassName="text-slate-400 text-xs font-mono"
               itemStyle={{ color: "#fff", fontSize: "12px", fontWeight: "bold" }}
@@ -119,7 +119,7 @@ export function HRVTrendChart() {
               stroke="url(#hrvSplit)"
               strokeWidth={3}
               dot={{ r: 3, strokeWidth: 1 }}
-              activeDot={{ r: 6 }}
+              activeDot={{ r: 5 }}
             />
           </LineChart>
         </ResponsiveContainer>

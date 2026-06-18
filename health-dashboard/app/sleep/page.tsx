@@ -25,13 +25,9 @@ export default function SleepPage() {
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-white/5 pb-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Sleep & Oxygen Saturation</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Nocturnal blood oxygen tracking, sleep durations, and target deficits.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-xl font-semibold tracking-normal text-white">Sleep & Oxygen Saturation</h1>
+        <p className="text-slate-500 text-[13px] mt-1">Sleep quality and oxygen saturation</p>
       </div>
 
       {/* Data Streams Strip */}
@@ -40,71 +36,65 @@ export default function SleepPage() {
       {/* Summary Scorecards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Metric 1: Average Sleep Duration */}
-        <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
+        <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
+              <Moon className="h-5 w-5 text-violet-400" />
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average Sleep Duration</span>
               <MetricInfo metricKey="sleep_duration" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
-              <span className="text-3xl font-black font-mono text-white">{avgSlept.toFixed(1)}</span>
+              <span className="text-3xl font-semibold text-white">{avgSlept.toFixed(1)}</span>
               <span className="text-xs text-slate-400">hours</span>
             </div>
-            <span className={`text-[10px] mt-2 inline-block font-semibold px-2 py-0.5 rounded ${
-              avgSlept >= 7.0 ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+            <span className={`text-xs mt-2 inline-block font-medium ${
+              avgSlept >= 7.0 ? "text-emerald-400" : "text-red-400"
             }`}>
               {avgSlept >= 7.0 ? "Healthy Sleep Quantity" : "Insufficient Sleep"}
             </span>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-violet-600/10 flex items-center justify-center border border-violet-500/20 text-violet-400">
-            <Moon className="h-6 w-6" />
-          </div>
         </div>
 
         {/* Metric 2: Average Sleep Debt */}
-        <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
+        <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
+              <Award className="h-5 w-5 text-indigo-400" />
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average Sleep Debt</span>
               <MetricInfo metricKey="sleep_debt" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
-              <span className={`text-3xl font-black font-mono ${avgDebt > 0 ? "text-red-400" : "text-emerald-400"}`}>
+              <span className={`text-3xl font-semibold ${avgDebt > 0 ? "text-red-400" : "text-emerald-400"}`}>
                 {avgDebt > 0 ? "+" : ""}
                 {avgDebt.toFixed(1)}
               </span>
               <span className="text-xs text-slate-400">hours</span>
             </div>
-            <span className={`text-[10px] mt-2 inline-block font-semibold px-2 py-0.5 rounded ${
-              avgDebt <= 0.5 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+            <span className={`text-xs mt-2 inline-block font-medium ${
+              avgDebt <= 0.5 ? "text-emerald-400" : "text-amber-400"
             }`}>
               {avgDebt <= 0.5 ? "Optimal Balance" : "High Debt Accumulating"}
             </span>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-indigo-600/10 flex items-center justify-center border border-indigo-500/20 text-indigo-400">
-            <Award className="h-6 w-6" />
-          </div>
         </div>
 
         {/* Metric 3: Nocturnal Hypoxemic Episodes */}
-        <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
+        <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
+              <ShieldAlert className="h-5 w-5 text-red-400" />
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Hypoxemia Nights</span>
               <MetricInfo metricKey="hypoxemia" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
-              <span className="text-3xl font-black font-mono text-white">{dipNightsCount}</span>
+              <span className="text-3xl font-semibold text-white">{dipNightsCount}</span>
               <span className="text-xs text-slate-400">/ {nightsCount} nights</span>
             </div>
-            <span className={`text-[10px] mt-2 inline-block font-semibold px-2 py-0.5 rounded ${
-              dipNightsCount > 0 ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"
+            <span className={`text-xs mt-2 inline-block font-medium ${
+              dipNightsCount > 0 ? "text-red-400" : "text-emerald-400"
             }`}>
               {dipNightsCount > 0 ? "Oxygen Desaturation Detected" : "Optimal Blood Saturation"}
             </span>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-red-600/10 flex items-center justify-center border border-red-500/20 text-red-400">
-            <ShieldAlert className="h-6 w-6" />
           </div>
         </div>
       </div>
@@ -112,72 +102,66 @@ export default function SleepPage() {
       {/* Summary Scorecards Second Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card 1: REM % */}
-        <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
+        <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
+              <Moon className="h-5 w-5 text-violet-400" />
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">REM %</span>
               <MetricInfo metricKey="rem_pct" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
-              <span className="text-3xl font-black font-mono text-white">{remPct}%</span>
+              <span className="text-3xl font-semibold text-white">{remPct}%</span>
               <span className="text-xs text-slate-400">of sleep</span>
             </div>
-            <span className={`text-[10px] mt-2 inline-block font-semibold px-2 py-0.5 rounded ${
-              remPct >= 18 && remPct <= 27 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+            <span className={`text-xs mt-2 inline-block font-medium ${
+              remPct >= 18 && remPct <= 27 ? "text-emerald-400" : "text-amber-400"
             }`}>
               {remPct >= 18 && remPct <= 27 ? "Good REM Ratio" : "Suboptimal REM"}
             </span>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-violet-600/10 flex items-center justify-center border border-violet-500/20 text-violet-400">
-            <Moon className="h-6 w-6" />
-          </div>
         </div>
 
         {/* Card 2: Good sleep streak */}
-        <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
+        <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
+              <Award className="h-5 w-5 text-indigo-400" />
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Good sleep streak</span>
               <MetricInfo metricKey="good_sleep_streak" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
-              <span className={`text-3xl font-black font-mono ${
+              <span className={`text-3xl font-semibold ${
                 goodSleepStreak >= 5 ? "text-emerald-400" : goodSleepStreak >= 2 ? "text-amber-400" : "text-red-400"
               }`}>{goodSleepStreak}</span>
               <span className="text-xs text-slate-400">nights</span>
             </div>
-            <span className={`text-[10px] mt-2 inline-block font-semibold px-2 py-0.5 rounded ${
-              goodSleepStreak >= 5 ? "bg-emerald-500/10 text-emerald-400" : goodSleepStreak >= 2 ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"
+            <span className={`text-xs mt-2 inline-block font-medium ${
+              goodSleepStreak >= 5 ? "text-emerald-400" : goodSleepStreak >= 2 ? "text-amber-400" : "text-red-400"
             }`}>
               {goodSleepStreak >= 5 ? "Consistent Rest" : goodSleepStreak >= 2 ? "Moderate Routine" : "Rest Deficit"}
             </span>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-indigo-600/10 flex items-center justify-center border border-indigo-500/20 text-indigo-400">
-            <Award className="h-6 w-6" />
-          </div>
         </div>
 
         {/* Card 3: Avg deep sleep */}
-        <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
+        <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
+              <Activity className="h-5 w-5 text-sky-400" />
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Avg deep sleep</span>
               <MetricInfo metricKey="avg_deep_sleep" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
-              <span className={`text-3xl font-black font-mono ${
+              <span className={`text-3xl font-semibold ${
                 avgDeepSleep >= 60 ? "text-emerald-400" : avgDeepSleep >= 40 ? "text-amber-400" : "text-red-400"
               }`}>{avgDeepSleep}</span>
               <span className="text-xs text-slate-400">min/night</span>
             </div>
-            <span className={`text-[10px] mt-2 inline-block font-semibold px-2 py-0.5 rounded ${
-              avgDeepSleep >= 60 ? "bg-emerald-500/10 text-emerald-400" : avgDeepSleep >= 40 ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"
+            <span className={`text-xs mt-2 inline-block font-medium ${
+              avgDeepSleep >= 60 ? "text-emerald-400" : avgDeepSleep >= 40 ? "text-amber-400" : "text-red-400"
             }`}>
               {avgDeepSleep >= 60 ? "Optimal Deep Sleep" : avgDeepSleep >= 40 ? "Average Recovery" : "Needs Deeper Sleep"}
             </span>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-sky-600/10 flex items-center justify-center border border-sky-500/20 text-sky-400">
-            <Activity className="h-6 w-6" />
           </div>
         </div>
       </div>

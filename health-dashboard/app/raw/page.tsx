@@ -269,12 +269,10 @@ export default function RawMetricsPage() {
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-white/5 pb-4">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Raw Metrics</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            All raw physiological data streams — direct from Google Health API v4.
-          </p>
+          <h1 className="text-xl font-semibold tracking-normal text-white">Raw Metrics</h1>
+          <p className="text-slate-500 text-[13px] mt-1">All data streams from Google Health API</p>
         </div>
         <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold border self-start md:self-auto ${
           isLive

@@ -9,8 +9,8 @@ test('Dashboard renders all charts in Sample Data Mode', async ({ page }) => {
   // Wait for page load
   await page.waitForLoadState('networkidle');
 
-  // Verify Sample Data mode badge is present
-  await expect(page.locator('text=Sample Data')).toBeVisible();
+  // Verify Demo mode badge is present
+  await expect(page.locator('text=Demo')).toBeVisible();
 
   // Overview tab
   await expect(page.locator('[data-testid="hrv-chart"]')).toBeVisible();
