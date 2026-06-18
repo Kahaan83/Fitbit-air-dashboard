@@ -81,13 +81,30 @@ Fitbit_Air_dashboard/
 
 ---
 
-### 2. One-Click Startup (Recommended for Windows)
+### 2. One-Click Startup (Recommended)
 
-For an automated setup and startup experience, simply do the following:
+For an automated setup and startup experience:
 
 1. Place the downloaded `credentials.json` inside the **`google-health-service/`** directory.
-2. Double-click the **`start_dashboard.bat`** script at the root of the project workspace.
-   * This script will automatically create the Python virtual environment, install dependencies for both the backend and frontend, launch both servers, and open `http://localhost:3000` in your web browser.
+2. Run the appropriate launcher for your OS from the **project root**:
+
+**Windows** — double-click `start_dashboard.bat`, or run in a terminal:
+```bat
+start_dashboard.bat
+```
+
+**macOS / Linux** — make it executable once, then run:
+```bash
+chmod +x start_dashboard.sh && ./start_dashboard.sh
+```
+
+Both scripts automatically:
+- Create the Python virtual environment and install backend dependencies
+- Install Node.js frontend dependencies (first run only)
+- Launch the FastAPI backend on port 8000
+- Open `http://localhost:3000` in your browser
+- Start the Next.js dev server in the foreground
+- Kill the backend automatically when you press **Ctrl+C**
 
 ---
 

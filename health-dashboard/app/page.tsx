@@ -9,7 +9,9 @@ import { MetricInfo } from "@/components/MetricInfo";
 import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { Activity, Zap, TrendingUp, HeartPulse, BatteryCharging, Moon, Footprints } from "lucide-react";
 import { useChartData } from "@/lib/useChartData";
+import { useDashboardStore } from "@/lib/store";
 import DataStreamsStrip from "@/components/DataStreamsStrip";
+import { SkeletonCard, SkeletonChart } from "@/components/Skeleton";
 
 export default function OverviewPage() {
   const {
@@ -21,6 +23,7 @@ export default function OverviewPage() {
     sleepEfficiency,
     stepGoalHitRate,
   } = useChartData();
+  const { dataMode, isLoadingLiveData } = useDashboardStore();
 
   // Compute brief summary stats
   const latestHRV = hrv[hrv.length - 1]?.value || 0;
@@ -40,7 +43,14 @@ export default function OverviewPage() {
 
       {/* Summary Scorecards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Card 1: HRV */}
+        {dataMode === "live" && isLoadingLiveData ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : (
+          <>
         <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
@@ -97,11 +107,21 @@ export default function OverviewPage() {
             </span>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Summary Scorecards Second Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card 1: 7-day HRV avg */}
+        {dataMode === "live" && isLoadingLiveData ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : (
+          <>
         <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5">
@@ -182,19 +202,31 @@ export default function OverviewPage() {
             </span>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Main Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ChartErrorBoundary name="Heart Rate Variability Trend">
-          <HRVTrendChart />
-        </ChartErrorBoundary>
-        <ChartErrorBoundary name="VO2 Max Trend">
-          <VO2MaxChart />
-        </ChartErrorBoundary>
-        <ChartErrorBoundary name="Heart Rate Zones">
-          <HRZoneChart />
-        </ChartErrorBoundary>
+        {dataMode === "live" && isLoadingLiveData ? (
+          <>
+            <SkeletonChart />
+            <SkeletonChart />
+            <SkeletonChart />
+          </>
+        ) : (
+          <>
+            <ChartErrorBoundary name="Heart Rate Variability Trend">
+              <HRVTrendChart />
+            </ChartErrorBoundary>
+            <ChartErrorBoundary name="VO2 Max Trend">
+              <VO2MaxChart />
+            </ChartErrorBoundary>
+            <ChartErrorBoundary name="Heart Rate Zones">
+              <HRZoneChart />
+            </ChartErrorBoundary>
+          </>
+        )}
       </div>
 
       {/* Full-width Heatmap grid */}

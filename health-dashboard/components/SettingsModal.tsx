@@ -10,7 +10,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { settings, updateSettings, dataMode, setDataMode, addToast } = useDashboardStore();
+  const { settings, updateSettings, dataMode, setDataMode, addToast, setIsLoadingLiveData } = useDashboardStore();
 
   // Local state for settings form
   const [clientId, setClientId] = useState("");
@@ -38,6 +38,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setIsLoadingLiveData(true);
 
     try {
       // 1. Send settings/credentials to the backend
@@ -110,6 +111,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setDataMode("sample");
     } finally {
       setLoading(false);
+      setIsLoadingLiveData(false);
     }
   };
 

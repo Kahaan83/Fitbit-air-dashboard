@@ -50,3 +50,6 @@ body {
 .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
 
 input::placeholder { color: #334155; }
+
+@keyframes shimmer { 0%,100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+.shimmer { animation: shimmer 1.5s ease-in-out infinite; }

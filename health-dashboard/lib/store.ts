@@ -23,6 +23,8 @@ interface DashboardState {
   updateSettings: (settings: Partial<Settings>) => void;
   liveData: any | null;
   setLiveData: (data: any) => void;
+  isLoadingLiveData: boolean;
+  setIsLoadingLiveData: (loading: boolean) => void;
   toasts: Toast[];
   addToast: (message: string, type?: "success" | "error" | "info") => void;
   removeToast: (id: string) => void;
@@ -50,6 +52,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     })),
   liveData: null,
   setLiveData: (data) => set({ liveData: data }),
+  isLoadingLiveData: false,
+  setIsLoadingLiveData: (loading) => set({ isLoadingLiveData: loading }),
   toasts: [],
   addToast: (message, type = "info") => {
     const id = Math.random().toString(36).substring(2, 9);
