@@ -8,6 +8,12 @@ export interface Settings {
   scopes: string[];
 }
 
+export interface Toast {
+  id: string;
+  message: string;
+  type: "success" | "error" | "info";
+}
+
 interface DashboardState {
   dataMode: "sample" | "live";
   setDataMode: (mode: "sample" | "live") => void;
@@ -17,6 +23,9 @@ interface DashboardState {
   updateSettings: (settings: Partial<Settings>) => void;
   liveData: any | null;
   setLiveData: (data: any) => void;
+  toasts: Toast[];
+  addToast: (message: string, type?: "success" | "error" | "info") => void;
+  removeToast: (id: string) => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -41,4 +50,20 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     })),
   liveData: null,
   setLiveData: (data) => set({ liveData: data }),
+  toasts: [],
+  addToast: (message, type = "info") => {
+    const id = Math.random().toString(36).substring(2, 9);
+    set((state) => ({
+      toasts: [...state.toasts, { id, message, type }],
+    }));
+    setTimeout(() => {
+      set((state) => ({
+        toasts: state.toasts.filter((t) => t.id !== id),
+      }));
+    }, 3000);
+  },
+  removeToast: (id) =>
+    set((state) => ({
+      toasts: state.toasts.filter((t) => t.id !== id),
+    })),
 }));

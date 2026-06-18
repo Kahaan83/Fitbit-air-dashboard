@@ -10,7 +10,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { settings, updateSettings, dataMode, setDataMode } = useDashboardStore();
+  const { settings, updateSettings, dataMode, setDataMode, addToast } = useDashboardStore();
 
   // Local state for settings form
   const [clientId, setClientId] = useState("");
@@ -92,18 +92,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setLastSync(new Date().toISOString());
         setDataMode("live");
         
-        alert("Connected — Live Data Mode active! Successfully synced physiological measurements.");
+        addToast("Connected — Live Data Mode active! Successfully synced physiological measurements.", "success");
         onClose();
       } else {
-        alert(
-          "OAuth token not found or invalid.\n\nPlease ensure you run the Python service (localhost:8000) and complete the browser authentication flow first."
+        addToast(
+          "OAuth token not found or invalid. Please ensure you run the Python service (localhost:8000) and complete the browser authentication flow first.",
+          "error"
         );
         setDataMode("sample");
       }
     } catch (err: any) {
       console.error("Connection error:", err);
-      alert(
-        `Could not connect to Google Health Gateway.\n\nError: ${err.message}\n\nPlease verify that the FastAPI backend is running on http://127.0.0.1:8000 and that you have completed the OAuth flow.`
+      addToast(
+        `Could not connect to Google Health Gateway. Error: ${err.message}. Please verify backend configuration.`,
+        "error"
       );
       setDataMode("sample");
     } finally {
@@ -113,7 +115,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const handleResetToSample = () => {
     setDataMode("sample");
-    alert("Reset dashboard to Sample Data Mode.");
+    addToast("Reset dashboard to Sample Data Mode.", "info");
     onClose();
   };
 
@@ -177,13 +179,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                 setLastSync(new Date().toISOString());
                                 setDataMode("live");
                               } else {
-                                alert("Live data fetch failed. Ensure your Python backend is running.");
+                                addToast("Live data fetch failed. Ensure your Python backend is running.", "error");
                               }
                             } else {
-                              alert("No valid Google OAuth token found. Click 'Save & Connect Gateway' below to log in.");
+                              addToast("No valid Google OAuth token found. Click 'Save & Connect Gateway' below to log in.", "error");
                             }
                           } catch (err) {
-                            alert("Backend is offline. Please make sure the Python server is running on port 8000.");
+                            addToast("Backend is offline. Please make sure the Python server is running on port 8000.", "error");
                           } finally {
                             setLoading(false);
                           }
