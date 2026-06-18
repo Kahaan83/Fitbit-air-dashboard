@@ -13,7 +13,7 @@ interface HeaderProps {
 
 export function Header({ onOpenSettings }: HeaderProps) {
   const pathname = usePathname();
-  const { dataMode, setDataMode, lastSync, liveData, setLiveData, setLastSync } = useDashboardStore();
+  const { dataMode, setDataMode, lastSync, liveData, setLiveData, setLastSync, addToast } = useDashboardStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
@@ -27,10 +27,10 @@ export function Header({ onOpenSettings }: HeaderProps) {
         setLiveData(livePayload);
         setLastSync(new Date().toISOString());
       } else {
-        alert("Live data fetch failed.");
+        addToast("Live data fetch failed.", "error");
       }
     } catch (err) {
-      alert("Backend is offline.");
+      addToast("Backend is offline.", "error");
     } finally {
       setIsRefreshing(false);
     }
@@ -39,7 +39,7 @@ export function Header({ onOpenSettings }: HeaderProps) {
   const handleToggleMode = async () => {
     if (dataMode === "live") {
       setDataMode("sample");
-      alert("Switched to Sample Data Mode.");
+      addToast("Switched to Sample Data Mode.", "info");
     } else {
       setIsToggling(true);
       try {
@@ -55,12 +55,12 @@ export function Header({ onOpenSettings }: HeaderProps) {
           setLiveData(livePayload);
           setLastSync(new Date().toISOString());
           setDataMode("live");
-          alert("Connected — Live Data Mode active! Successfully synced physiological measurements.");
+          addToast("Connected — Live Data Mode active! Successfully synced physiological measurements.", "success");
         } else {
-          alert("No valid Google OAuth token found. Please click 'Settings' to configure credentials and sign in first.");
+          addToast("No valid Google OAuth token found. Please click 'Settings' to configure credentials and sign in first.", "error");
         }
       } catch (err) {
-        alert("Cannot connect to Google Health Gateway. Make sure your Python server is running on port 8000.");
+        addToast("Cannot connect to Google Health Gateway. Make sure your Python server is running on port 8000.", "error");
       } finally {
         setIsToggling(false);
       }
