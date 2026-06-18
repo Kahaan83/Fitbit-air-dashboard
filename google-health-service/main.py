@@ -246,10 +246,13 @@ async def get_health_data() -> JSONResponse:
 
     The Cache-Control header (max-age=300) prevents excessive backend querying.
     """
-    # Return cached payload if available
-    if _cache["payload"] is not None:
-        headers = {"Cache-Control": "max-age=300"}
-        return JSONResponse(content=_cache["payload"], headers=headers)
+    # Return cached payload if available and not older than 5 minutes
+    if _cache["payload"] is not None and _cache["synced_at"] is not None:
+        from datetime import timedelta
+        synced_time = datetime.fromisoformat(_cache["synced_at"])
+        if datetime.now(timezone.utc) - synced_time < timedelta(minutes=5):
+            headers = {"Cache-Control": "max-age=300"}
+            return JSONResponse(content=_cache["payload"], headers=headers)
 
     # Cache is empty: try to run automatic sync for the past 30 days
     from datetime import timedelta
