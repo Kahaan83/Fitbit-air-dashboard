@@ -48,17 +48,17 @@ export function SleepDebtChart() {
   return (
     <div
       data-testid="sleep-debt-chart"
-      className="glow-card rounded-2xl border border-white/10 bg-slate-900/50 p-6 backdrop-blur-sm shadow-xl"
+      className="rounded-xl border border-white/8 bg-slate-900/60 p-5"
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5">
-            <h3 className="text-base font-bold text-white">Sleep Duration & Deficit</h3>
+            <h3 className="text-sm font-semibold text-white">Sleep Duration & Deficit</h3>
             <MetricInfo metricKey="sleep_debt" />
           </div>
-          <p className="text-xs text-slate-400">Nightly sleep hours vs. target ({target}h)</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Nightly sleep hours vs. target ({target}h)</p>
         </div>
-        <div className="flex gap-4 text-xs font-semibold">
+        <div className="flex gap-3 text-xs font-medium">
           <span className="flex items-center gap-1 text-sky-400">
             <span className="h-2 w-2 rounded-full bg-sky-400" /> Sleep Duration
           </span>
@@ -71,7 +71,7 @@ export function SleepDebtChart() {
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
             <XAxis
               dataKey="date"
               stroke="#64748b"
@@ -91,7 +91,7 @@ export function SleepDebtChart() {
               contentStyle={{
                 backgroundColor: "#0f172a",
                 borderColor: "rgba(255,255,255,0.1)",
-                borderRadius: "8px",
+                borderRadius: "6px",
               }}
               labelClassName="text-slate-400 text-xs font-mono"
               itemStyle={{ fontSize: "12px", fontWeight: "bold" }}

@@ -36,21 +36,21 @@ export function AcuteStressHeatmap() {
   return (
     <div
       data-testid="stress-heatmap"
-      className="glow-card rounded-2xl border border-white/10 bg-slate-900/50 p-6 backdrop-blur-sm shadow-xl relative"
+      className="rounded-xl border border-white/8 bg-slate-900/60 p-5 relative"
     >
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-1.5">
-            <h3 className="text-base font-bold text-white">Acute Stress Heatmap</h3>
+            <h3 className="text-sm font-semibold text-white">Acute Stress Heatmap</h3>
             <MetricInfo metricKey="acute_stress" />
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-[11px] text-slate-500 mt-0.5">
             Cross-references heart rate spikes against zero-movement intervals
           </p>
         </div>
         
         {/* Heatmap Legend */}
-        <div className="flex flex-wrap gap-3 text-[10px] font-mono text-slate-400 font-semibold">
+        <div className="flex flex-wrap gap-3 text-[10px] font-mono text-slate-400 font-medium">
           <span className="flex items-center gap-1">
             <span className="h-3 w-3 rounded bg-slate-800/40 border border-white/5" /> 0 Events
           </span>

@@ -46,15 +46,15 @@ export function NocturnalSpO2Chart() {
   return (
     <div
       data-testid="spo2-chart"
-      className="glow-card rounded-2xl border border-white/10 bg-slate-900/50 p-6 backdrop-blur-sm shadow-xl"
+      className="rounded-xl border border-white/8 bg-slate-900/60 p-5"
     >
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-1.5">
-            <h3 className="text-base font-bold text-white">Nocturnal Oxygen Saturation (SpO2)</h3>
+            <h3 className="text-sm font-semibold text-white">Nocturnal Oxygen Saturation (SpO2)</h3>
             <MetricInfo metricKey="spo2" />
           </div>
-          <p className="text-xs text-slate-400">Continuous 5-minute resolution during sleep</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Continuous 5-minute resolution during sleep</p>
         </div>
 
         {/* Date Selector */}
@@ -98,7 +98,7 @@ export function NocturnalSpO2Chart() {
                   <stop offset={1} stopColor="#ef4444" stopOpacity={1} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
               <XAxis
                 dataKey="time"
                 stroke="#64748b"
@@ -118,7 +118,7 @@ export function NocturnalSpO2Chart() {
                 contentStyle={{
                   backgroundColor: "#0f172a",
                   borderColor: "rgba(255,255,255,0.1)",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                 }}
                 labelClassName="text-slate-400 text-xs font-mono"
                 itemStyle={{ color: "#fff", fontSize: "12px", fontWeight: "bold" }}
