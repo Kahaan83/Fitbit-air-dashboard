@@ -31,7 +31,10 @@ export async function POST(request: Request) {
     return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json(
-      { error: "backend_unavailable", message: error.message },
+      {
+        error: "backend_unavailable",
+        message: "The local Python gateway service is not running on port 8000.",
+      },
       { status: 503 }
     );
   }

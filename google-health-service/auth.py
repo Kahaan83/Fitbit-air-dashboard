@@ -88,6 +88,21 @@ def _run_browser_consent() -> Credentials:
             "Download it from GCP Console → APIs & Services → Credentials."
         )
 
+    # Validate that client_id and client_secret are not empty
+    try:
+        with open(creds_path, "r") as f:
+            creds_data = json.load(f)
+        installed_data = creds_data.get("installed", {})
+        client_id = installed_data.get("client_id", "").strip()
+        client_secret = installed_data.get("client_secret", "").strip()
+        if not client_id or not client_secret:
+            raise ValueError(
+                "Client ID or Client Secret is empty in credentials.json. "
+                "Please open Settings in the dashboard and configure your GCP Client ID and Secret first."
+            )
+    except (json.JSONDecodeError, KeyError) as e:
+        raise ValueError(f"credentials.json is invalid: {e}")
+
     logger.info("Starting browser OAuth consent flow...")
     flow = InstalledAppFlow.from_client_secrets_file(str(creds_path), SCOPES)
 
