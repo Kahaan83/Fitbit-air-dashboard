@@ -13,6 +13,15 @@ export function useChartData() {
       sleepDebt: mock.mockSleepDebt,
       vo2Max: mock.mockVO2Max,
       acuteStress: mock.mockAcuteStress,
+      // Analytics
+      hrvRolling7: mock.mockHRVRolling7,
+      recoveryScore: mock.mockRecoveryScore,
+      peakHRToday: mock.mockPeakHRToday,
+      sleepEfficiency: mock.mockSleepEfficiency,
+      remPct: mock.mockRemPct,
+      stepGoalHitRate: mock.mockStepGoalHitRate,
+      goodSleepStreak: mock.mockGoodSleepStreak,
+      avgDeepSleep: mock.mockAvgDeepSleep,
     };
   }
 
@@ -85,14 +94,105 @@ export function useChartData() {
     spo2Grouped[dateKey].sort((a, b) => a.time.localeCompare(b.time));
   });
 
+  // ── Derived analytics for live mode ─────────────────────────────────────────
+
+  // Resolve final hrv array (live or mock fallback)
+  const hrvFinal: mock.HRVData[] = hrvMapped.length > 0 ? hrvMapped : mock.mockHRV;
+
+  // 1. hrvRolling7: rolling 7-day average RMSSD
+  const last7Hrv = hrvFinal.slice(-7);
+  const hrvRolling7 = last7Hrv.length >= 7
+    ? Math.round((last7Hrv.reduce((s, d) => s + d.value, 0) / 7) * 10) / 10
+    : 0;
+
+  // 2. recoveryScore: clamp((latestHRV / avg30HRV) * 50 + 25, 0, 100)
+  const avg30HRV = hrvFinal.length > 0
+    ? hrvFinal.reduce((s, d) => s + d.value, 0) / hrvFinal.length
+    : 1;
+  const latestHRV = hrvFinal[hrvFinal.length - 1]?.value ?? 0;
+  const recoveryScore = Math.round(Math.max(0, Math.min(100, (latestHRV / avg30HRV) * 50 + 25)));
+
+  // 3. peakHRToday: max heart rate from today's live readings
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const rawHR = liveData.heart_rate || [];
+  const todayHR = rawHR
+    .filter((d: any) => (d.timestamp || "").startsWith(todayStr))
+    .map((d: any) => typeof d.value === "number" ? d.value : parseFloat(d.value));
+  const peakHRToday = todayHR.length > 0 ? Math.max(...todayHR) : 0;
+
+  // 4. sleepEfficiency: most recent night's actual_hours / (actual_hours + 0.5) * 100
+  const sleepDebtFinal = sleepDebtMapped.length > 0 ? sleepDebtMapped : mock.mockSleepDebt;
+  const lastSleepDebt = sleepDebtFinal[sleepDebtFinal.length - 1];
+  const sleepEfficiency = lastSleepDebt
+    ? Math.round((lastSleepDebt.actual_hours / (lastSleepDebt.actual_hours + 0.5)) * 100 * 10) / 10
+    : 0;
+
+  // 5. remPct: REM % from most recent live sleep session
+  const liveSleep = liveData.sleep || [];
+  let remPct = 24.3; // sample fallback
+  if (liveSleep.length > 0) {
+    const lastSession = liveSleep[liveSleep.length - 1];
+    const stages = lastSession?.value?.stages ?? {};
+    const total = lastSession?.value?.total_sleep_minutes ?? 0;
+    if (total > 0 && stages.rem != null) {
+      remPct = Math.round((stages.rem / total) * 100 * 10) / 10;
+    }
+  }
+
+  // 6. stepGoalHitRate: % of days with >= 10000 steps
+  const rawSteps = liveData.steps || [];
+  let stepGoalHitRate = 63; // sample fallback
+  if (rawSteps.length > 0) {
+    const dailyStepMap: Record<string, number> = {};
+    rawSteps.forEach((d: any) => {
+      const day = (d.timestamp || "").slice(0, 10);
+      if (day) dailyStepMap[day] = (dailyStepMap[day] ?? 0) + (d.value || 0);
+    });
+    const days = Object.values(dailyStepMap);
+    if (days.length > 0) {
+      stepGoalHitRate = Math.round((days.filter((v) => v >= 10000).length / days.length) * 100);
+    }
+  }
+
+  // 7. goodSleepStreak: consecutive recent nights with actual_hours >= 7
+  let goodSleepStreak = 0;
+  for (let i = sleepDebtFinal.length - 1; i >= 0; i--) {
+    if (sleepDebtFinal[i].actual_hours >= 7) {
+      goodSleepStreak++;
+    } else {
+      break;
+    }
+  }
+
+  // 8. avgDeepSleep: mean deep sleep minutes across all live sessions
+  let avgDeepSleep = 72; // sample fallback
+  if (liveSleep.length > 0) {
+    const deepMins = liveSleep
+      .map((s: any) => s?.value?.stages?.deep ?? null)
+      .filter((v: number | null) => v != null) as number[];
+    if (deepMins.length > 0) {
+      avgDeepSleep = Math.round(deepMins.reduce((a, b) => a + b, 0) / deepMins.length);
+    }
+  }
+
   return {
-    hrv: hrvMapped.length > 0 ? hrvMapped : mock.mockHRV,
+    hrv: hrvFinal,
     ansBalance: ansMapped.length > 0 ? ansMapped : mock.mockANSBalance,
     spo2Nocturnal: Object.keys(spo2Grouped).length > 0 ? spo2Grouped : mock.mockSpO2Nocturnal,
     skinTemp: tempMapped.length > 0 ? tempMapped : mock.mockSkinTemp,
-    sleepDebt: sleepDebtMapped.length > 0 ? sleepDebtMapped : mock.mockSleepDebt,
+    sleepDebt: sleepDebtFinal,
     vo2Max: vo2MaxMapped.length > 0 ? vo2MaxMapped : mock.mockVO2Max,
     acuteStress: stressMapped.length > 0 ? stressMapped : mock.mockAcuteStress,
+    // Analytics
+    hrvRolling7,
+    recoveryScore,
+    peakHRToday,
+    sleepEfficiency,
+    remPct,
+    stepGoalHitRate,
+    goodSleepStreak,
+    avgDeepSleep,
   };
 }
 export type ChartData = ReturnType<typeof useChartData>;
+

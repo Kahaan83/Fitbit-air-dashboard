@@ -6,10 +6,10 @@ import SleepDebtChart from "@/components/charts/SleepDebtChart";
 import { useChartData } from "@/lib/useChartData";
 import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { MetricInfo } from "@/components/MetricInfo";
-import { Moon, ShieldAlert, Award } from "lucide-react";
+import { Moon, ShieldAlert, Award, Activity } from "lucide-react";
 
 export default function SleepPage() {
-  const { sleepDebt, spo2Nocturnal } = useChartData();
+  const { sleepDebt, spo2Nocturnal, remPct, goodSleepStreak, avgDeepSleep } = useChartData();
 
   // Compute sleep summary metrics
   const avgSlept = (sleepDebt.reduce((acc: number, curr: any) => acc + curr.actual_hours, 0) / sleepDebt.length) || 0;
@@ -101,6 +101,79 @@ export default function SleepPage() {
           </div>
           <div className="h-12 w-12 rounded-xl bg-red-600/10 flex items-center justify-center border border-red-500/20 text-red-400">
             <ShieldAlert className="h-6 w-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* Summary Scorecards Second Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Card 1: REM % */}
+        <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">REM %</span>
+              <MetricInfo metricKey="rem_pct" />
+            </div>
+            <div className="flex items-baseline gap-1.5 mt-1.5">
+              <span className="text-3xl font-black font-mono text-white">{remPct}%</span>
+              <span className="text-xs text-slate-400">of sleep</span>
+            </div>
+            <span className={`text-[10px] mt-2 inline-block font-semibold px-2 py-0.5 rounded ${
+              remPct >= 18 && remPct <= 27 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+            }`}>
+              {remPct >= 18 && remPct <= 27 ? "Good REM Ratio" : "Suboptimal REM"}
+            </span>
+          </div>
+          <div className="h-12 w-12 rounded-xl bg-violet-600/10 flex items-center justify-center border border-violet-500/20 text-violet-400">
+            <Moon className="h-6 w-6" />
+          </div>
+        </div>
+
+        {/* Card 2: Good sleep streak */}
+        <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Good sleep streak</span>
+              <MetricInfo metricKey="good_sleep_streak" />
+            </div>
+            <div className="flex items-baseline gap-1.5 mt-1.5">
+              <span className={`text-3xl font-black font-mono ${
+                goodSleepStreak >= 5 ? "text-emerald-400" : goodSleepStreak >= 2 ? "text-amber-400" : "text-red-400"
+              }`}>{goodSleepStreak}</span>
+              <span className="text-xs text-slate-400">nights</span>
+            </div>
+            <span className={`text-[10px] mt-2 inline-block font-semibold px-2 py-0.5 rounded ${
+              goodSleepStreak >= 5 ? "bg-emerald-500/10 text-emerald-400" : goodSleepStreak >= 2 ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"
+            }`}>
+              {goodSleepStreak >= 5 ? "Consistent Rest" : goodSleepStreak >= 2 ? "Moderate Routine" : "Rest Deficit"}
+            </span>
+          </div>
+          <div className="h-12 w-12 rounded-xl bg-indigo-600/10 flex items-center justify-center border border-indigo-500/20 text-indigo-400">
+            <Award className="h-6 w-6" />
+          </div>
+        </div>
+
+        {/* Card 3: Avg deep sleep */}
+        <div className="glow-card rounded-2xl border border-white/10 bg-slate-900/40 p-6 backdrop-blur-sm shadow-xl flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Avg deep sleep</span>
+              <MetricInfo metricKey="avg_deep_sleep" />
+            </div>
+            <div className="flex items-baseline gap-1.5 mt-1.5">
+              <span className={`text-3xl font-black font-mono ${
+                avgDeepSleep >= 60 ? "text-emerald-400" : avgDeepSleep >= 40 ? "text-amber-400" : "text-red-400"
+              }`}>{avgDeepSleep}</span>
+              <span className="text-xs text-slate-400">min/night</span>
+            </div>
+            <span className={`text-[10px] mt-2 inline-block font-semibold px-2 py-0.5 rounded ${
+              avgDeepSleep >= 60 ? "bg-emerald-500/10 text-emerald-400" : avgDeepSleep >= 40 ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"
+            }`}>
+              {avgDeepSleep >= 60 ? "Optimal Deep Sleep" : avgDeepSleep >= 40 ? "Average Recovery" : "Needs Deeper Sleep"}
+            </span>
+          </div>
+          <div className="h-12 w-12 rounded-xl bg-sky-600/10 flex items-center justify-center border border-sky-500/20 text-sky-400">
+            <Activity className="h-6 w-6" />
           </div>
         </div>
       </div>
