@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { useDashboardStore } from "@/lib/store";
 import * as mock from "@/lib/mockData";
 import { MetricInfo } from "@/components/MetricInfo";
+import DataStreamsStrip from "@/components/DataStreamsStrip";
 import {
   Heart,
   Activity,
@@ -284,6 +285,9 @@ export default function RawMetricsPage() {
           {isLive ? `Live · Synced ${lastSync ? new Date(lastSync).toLocaleTimeString() : "—"}` : "Sample Data Mode"}
         </div>
       </div>
+
+      {/* Data Streams Strip */}
+      <DataStreamsStrip />
 
       {/* ── Metric Cards Grid ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

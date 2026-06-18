@@ -7,6 +7,7 @@ import { useChartData } from "@/lib/useChartData";
 import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { MetricInfo } from "@/components/MetricInfo";
 import { Activity, ShieldCheck, Thermometer } from "lucide-react";
+import DataStreamsStrip from "@/components/DataStreamsStrip";
 
 export default function RecoveryPage() {
   const { ansBalance, skinTemp } = useChartData();
@@ -26,6 +27,9 @@ export default function RecoveryPage() {
           </p>
         </div>
       </div>
+
+      {/* Data Streams Strip */}
+      <DataStreamsStrip />
 
       {/* Summary Scorecards Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

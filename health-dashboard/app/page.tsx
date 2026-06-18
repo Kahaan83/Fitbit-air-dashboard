@@ -9,6 +9,7 @@ import { MetricInfo } from "@/components/MetricInfo";
 import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { Activity, Zap, TrendingUp, HeartPulse, BatteryCharging, Moon, Footprints } from "lucide-react";
 import { useChartData } from "@/lib/useChartData";
+import DataStreamsStrip from "@/components/DataStreamsStrip";
 
 export default function OverviewPage() {
   const {
@@ -37,6 +38,9 @@ export default function OverviewPage() {
           </p>
         </div>
       </div>
+
+      {/* Data Streams Strip */}
+      <DataStreamsStrip />
 
       {/* Summary Scorecards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
