@@ -118,6 +118,9 @@ uvicorn main:app --reload --port 8000
 
 On first launch, a **browser window** will open asking you to sign in with Google and grant health permissions. Once complete, a `token.json` file is saved — future launches skip this step.
 
+> [!NOTE]
+> **CORS Origin Configuration**: The backend CORS policy can be configured via the `ALLOWED_ORIGIN` variable in `google-health-service/.env`. By default, it is set to `ALLOWED_ORIGIN=http://localhost:3000`. If you run the frontend on a different host or port, update this value in `.env` to avoid CORS issues.
+
 You'll see this when the backend is ready:
 ```
 INFO:     Uvicorn running on http://0.0.0.0:8000
