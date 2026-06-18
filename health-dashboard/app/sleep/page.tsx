@@ -7,6 +7,7 @@ import { useChartData } from "@/lib/useChartData";
 import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { MetricInfo } from "@/components/MetricInfo";
 import { Moon, ShieldAlert, Award, Activity } from "lucide-react";
+import DataStreamsStrip from "@/components/DataStreamsStrip";
 
 export default function SleepPage() {
   const { sleepDebt, spo2Nocturnal, remPct, goodSleepStreak, avgDeepSleep } = useChartData();
@@ -32,6 +33,9 @@ export default function SleepPage() {
           </p>
         </div>
       </div>
+
+      {/* Data Streams Strip */}
+      <DataStreamsStrip />
 
       {/* Summary Scorecards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
