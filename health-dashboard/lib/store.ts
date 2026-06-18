@@ -1,8 +1,6 @@
 import { create } from "zustand";
 
 export interface Settings {
-  clientId: string;
-  clientSecret: string;
   maxHR: number;
   restingHR: number;
   targetSleepHours: number;
@@ -27,8 +25,6 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   lastSync: null,
   setLastSync: (ts) => set({ lastSync: ts }),
   settings: {
-    clientId: "",
-    clientSecret: "",
     maxHR: 185,
     restingHR: 58,
     targetSleepHours: 8,

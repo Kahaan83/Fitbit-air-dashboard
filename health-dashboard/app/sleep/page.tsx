@@ -4,6 +4,7 @@ import React from "react";
 import NocturnalSpO2Chart from "@/components/charts/NocturnalSpO2Chart";
 import SleepDebtChart from "@/components/charts/SleepDebtChart";
 import { useChartData } from "@/lib/useChartData";
+import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { MetricInfo } from "@/components/MetricInfo";
 import { Moon, ShieldAlert, Award } from "lucide-react";
 
@@ -106,8 +107,12 @@ export default function SleepPage() {
 
       {/* Sleep Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <NocturnalSpO2Chart />
-        <SleepDebtChart />
+        <ChartErrorBoundary name="Nocturnal SpO2 Levels">
+          <NocturnalSpO2Chart />
+        </ChartErrorBoundary>
+        <ChartErrorBoundary name="Sleep Debt Accumulation">
+          <SleepDebtChart />
+        </ChartErrorBoundary>
       </div>
     </div>
   );

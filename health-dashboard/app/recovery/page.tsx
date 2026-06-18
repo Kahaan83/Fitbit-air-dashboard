@@ -4,6 +4,7 @@ import React from "react";
 import ANSBalanceChart from "@/components/charts/ANSBalanceChart";
 import SkinTempChart from "@/components/charts/SkinTempChart";
 import { useChartData } from "@/lib/useChartData";
+import ChartErrorBoundary from "@/components/ChartErrorBoundary";
 import { MetricInfo } from "@/components/MetricInfo";
 import { Activity, ShieldCheck, Thermometer } from "lucide-react";
 
@@ -77,8 +78,12 @@ export default function RecoveryPage() {
 
       {/* Charts Display */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ANSBalanceChart />
-        <SkinTempChart />
+        <ChartErrorBoundary name="Autonomic Nervous System Balance">
+          <ANSBalanceChart />
+        </ChartErrorBoundary>
+        <ChartErrorBoundary name="Skin Temperature Deviation">
+          <SkinTempChart />
+        </ChartErrorBoundary>
       </div>
     </div>
   );
