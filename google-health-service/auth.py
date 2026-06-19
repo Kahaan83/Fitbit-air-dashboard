@@ -35,6 +35,20 @@ load_dotenv()
 CREDENTIALS_PATH = os.getenv("CREDENTIALS_PATH", "credentials.json")
 TOKEN_PATH = os.getenv("TOKEN_PATH", "token.json")
 
+# Check permissions if token.json exists when auth.py loads
+if os.path.exists(TOKEN_PATH):
+    try:
+        import stat
+        file_stat = os.stat(TOKEN_PATH)
+        # Check if group or others have read/write/execute permissions (stat.S_IRWXG | stat.S_IRWXO)
+        if file_stat.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+            logger.warning(
+                f"File permissions on {TOKEN_PATH} are too permissive: {oct(file_stat.st_mode & 0o777)}. "
+                "The file should only be readable and writable by the owner."
+            )
+    except Exception as e:
+        logger.warning(f"Failed to check permissions on {TOKEN_PATH}: {e}")
+
 # ─── OAuth Scopes ─────────────────────────────────────────────────────────────
 # IMPORTANT: These are the ONLY valid consolidated scopes for the Google Health
 # API v4. Do NOT use granular per-metric scopes — they do not exist.
@@ -92,19 +106,34 @@ def _run_browser_consent() -> Credentials:
     try:
         with open(creds_path, "r") as f:
             creds_data = json.load(f)
+        if "installed" not in creds_data:
+            creds_data["installed"] = {}
         installed_data = creds_data.get("installed", {})
         client_id = installed_data.get("client_id", "").strip()
+        
+        # Check env first for client secret and project ID
+        env_client_secret = (os.getenv("FITBIT_CLIENT_SECRET") or os.getenv("GCP_CLIENT_SECRET") or "").strip()
         client_secret = installed_data.get("client_secret", "").strip()
+        if not client_secret and env_client_secret:
+            client_secret = env_client_secret
+            creds_data["installed"]["client_secret"] = client_secret
+
+        env_project_id = (os.getenv("GCP_PROJECT_ID") or "").strip()
+        project_id = installed_data.get("project_id", "").strip()
+        if not project_id and env_project_id:
+            project_id = env_project_id
+            creds_data["installed"]["project_id"] = project_id
+
         if not client_id or not client_secret:
             raise ValueError(
-                "Client ID or Client Secret is empty in credentials.json. "
-                "Please open Settings in the dashboard and configure your GCP Client ID and Secret first."
+                "Client ID or Client Secret is empty. "
+                "Please configure them in GCP/Environment/Settings first."
             )
     except (json.JSONDecodeError, KeyError) as e:
         raise ValueError(f"credentials.json is invalid: {e}")
 
     logger.info("Starting browser OAuth consent flow...")
-    flow = InstalledAppFlow.from_client_secrets_file(str(creds_path), SCOPES)
+    flow = InstalledAppFlow.from_client_config(creds_data, SCOPES)
 
     # run_local_server: starts a local HTTP server on a random available port
     # and opens the browser automatically.
@@ -134,6 +163,11 @@ def _save_token(creds: Credentials) -> None:
     }
     with open(TOKEN_PATH, "w") as f:
         json.dump(token_data, f, indent=2)
+    import os, stat
+    try:
+        os.chmod(TOKEN_PATH, stat.S_IRUSR | stat.S_IWUSR)
+    except Exception as e:
+        logger.warning(f"Could not set permissions on token.json: {e}")
     logger.debug("token.json updated.")
 
 

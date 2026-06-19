@@ -1,5 +1,6 @@
 import { useDashboardStore } from "./store";
 import * as mock from "./mockData";
+import { useMemo } from "react";
 
 export function useChartData() {
   const { dataMode, liveData } = useDashboardStore();
@@ -34,8 +35,10 @@ export function useChartData() {
     value: typeof d.value === "number" ? d.value : parseFloat(d.value),
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-  // 2. ANS Balance: Already computed on backend
-  const ansMapped = (liveData.derived?.ans_balance || []).map((d: any) => ({
+  // 2. ANS Balance: Already computed on backend (safely handling list or dict format)
+  const ansRaw = liveData.derived?.ans_balance;
+  const ansList = Array.isArray(ansRaw) ? ansRaw : (ansRaw?.data || []);
+  const ansMapped = ansList.map((d: any) => ({
     date: d.date,
     lf_power: d.lf_power,
     hf_power: d.hf_power,
@@ -113,7 +116,7 @@ export function useChartData() {
   const recoveryScore = Math.round(Math.max(0, Math.min(100, (latestHRV / avg30HRV) * 50 + 25)));
 
   // 3. peakHRToday: max heart rate from today's live readings
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const rawHR = liveData.heart_rate || [];
   const todayHR = rawHR
     .filter((d: any) => (d.timestamp || "").startsWith(todayStr))

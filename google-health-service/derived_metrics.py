@@ -15,7 +15,7 @@ from scipy.signal import periodogram
 logger = logging.getLogger("derived_metrics")
 
 
-def calculate_ans_balance(hrv_series: list[dict]) -> list[dict]:
+def calculate_ans_balance(hrv_series: list[dict]) -> list[dict] | dict:
     """
     Computes LF/HF autonomic nervous system balance via frequency-domain analysis.
 
@@ -29,9 +29,13 @@ def calculate_ans_balance(hrv_series: list[dict]) -> list[dict]:
         LF band: 0.04–0.15 Hz. HF band: 0.15–0.4 Hz.
         Uses FFT on RR-interval series derived from RMSSD approximation.
     """
-    if not hrv_series:
-        logger.debug("calculate_ans_balance: Empty HRV series. Returning empty list.")
-        return []
+    if not hrv_series or len(hrv_series) < 5:
+        logger.warning("calculate_ans_balance: Insufficient data for frequency-domain LF/HF calculation.")
+        return {"reason": "insufficient_data", "data": []}
+
+    if any(r.get("data_type") == "DAILY_HEART_RATE_VARIABILITY" for r in hrv_series):
+        logger.warning("calculate_ans_balance: Received daily aggregates instead of intraday HRV. LF/HF analysis requires intraday samples.")
+        return {"reason": "insufficient_data", "data": []}
 
     # Group measurements by date
     grouped = defaultdict(list)
@@ -123,6 +127,8 @@ def calculate_ans_balance(hrv_series: list[dict]) -> list[dict]:
 
     # Sort results chronologically
     ans_results.sort(key=lambda x: x["date"])
+    if not ans_results:
+        return {"reason": "insufficient_data", "data": []}
     return ans_results
 
 

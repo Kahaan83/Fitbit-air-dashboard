@@ -14,7 +14,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   // Local state for settings form
   const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
   const [age, setAge] = useState(28);
   const [maxHR, setMaxHR] = useState(185);
   const [restingHR, setRestingHR] = useState(58);
@@ -25,7 +24,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   useEffect(() => {
     if (isOpen) {
       setClientId("");
-      setClientSecret("");
     }
     setAge(settings.age);
     setMaxHR(settings.maxHR);
@@ -49,7 +47,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         },
         body: JSON.stringify({
           clientId,
-          clientSecret,
           age,
           maxHR,
           restingHR,
@@ -76,9 +73,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         targetSleepHours,
       });
 
-      // Clear the clientId and clientSecret local state so they are not sitting in memory
+      // Clear the clientId local state so it is not sitting in memory
       setClientId("");
-      setClientSecret("");
 
       console.log("Checking OAuth token status...");
       const statusRes = await fetch("/api/status");
@@ -259,19 +255,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       placeholder="stored securely on backend"
                       className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
                     />
-                    <p className="text-xs text-slate-500 mt-1">stored securely on backend</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 font-medium mb-1.5">GCP Client Secret</label>
-                    <input
-                      type="password"
-                      value={clientSecret}
-                      onChange={(e) => setClientSecret(e.target.value)}
-                      placeholder="stored securely on backend"
-                      className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">stored securely on backend</p>
                   </div>
                 </div>
 

@@ -13,6 +13,7 @@ Run with: uvicorn main:app --reload --port 8000
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -50,6 +51,10 @@ logger = logging.getLogger("main")
 
 # ─── Environment ──────────────────────────────────────────────────────────────
 load_dotenv()
+
+if "GCP_PROJECT_ID" not in os.environ or not os.environ["GCP_PROJECT_ID"]:
+    raise RuntimeError("GCP_PROJECT_ID environment variable is missing or empty in .env. Startup aborted.")
+
 USER_MAX_HR = float(os.getenv("USER_MAX_HR", "185"))
 USER_RESTING_HR = float(os.getenv("USER_RESTING_HR", "58"))
 USER_TARGET_SLEEP_HOURS = float(os.getenv("USER_TARGET_SLEEP_HOURS", "8"))
@@ -94,7 +99,10 @@ app = FastAPI(
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 import os
-ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "http://localhost:3000")
+ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN")
+# Strict check for ALLOWED_ORIGIN is required for production to prevent cross-origin authorization token theft
+if not ALLOWED_ORIGIN:
+    raise RuntimeError("CORS ALLOWED_ORIGIN environment variable is missing or empty in .env. Wildcard fallbacks are not allowed.")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[ALLOWED_ORIGIN],
@@ -121,7 +129,7 @@ class SyncRequest(BaseModel):
 
 class SettingsRequest(BaseModel):
     client_id: str
-    client_secret: str
+    client_secret: str | None = None
     age: int
     max_hr: float
     resting_hr: float
@@ -148,13 +156,17 @@ async def update_settings(body: SettingsRequest) -> JSONResponse:
                 pass
 
         final_client_id = body.client_id if body.client_id.strip() else existing_client_id
-        final_client_secret = body.client_secret if body.client_secret.strip() else existing_client_secret
+        
+        # Load from request body, environment variable, or fallback to existing
+        body_client_secret = body.client_secret if body.client_secret and body.client_secret.strip() else None
+        env_client_secret = os.getenv("FITBIT_CLIENT_SECRET") or os.getenv("GCP_CLIENT_SECRET")
+        final_client_secret = body_client_secret or env_client_secret or existing_client_secret
 
         creds_data = {
             "installed": {
                 "client_id": final_client_id,
                 "client_secret": final_client_secret,
-                "project_id": "fitbit-air-dashboard-499709",
+                "project_id": os.getenv("GCP_PROJECT_ID", ""),
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
@@ -325,6 +337,7 @@ async def get_health_data() -> JSONResponse:
         
         _cache["payload"] = payload
         _cache["synced_at"] = datetime.now(timezone.utc).isoformat()
+        _cache["last_sync_at"] = time.time()
         
         headers = {"Cache-Control": "max-age=300"}
         return JSONResponse(content=payload, headers=headers)
@@ -346,6 +359,19 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
 
     Runs derived metric calculations and caches results in memory.
     """
+    last_sync = _cache.get("last_sync_at")
+    if last_sync is not None:
+        elapsed = time.time() - last_sync
+        if elapsed < 60:
+            retry_after = int(60 - elapsed)
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "error": "Sync cooldown active",
+                    "retry_after": retry_after
+                }
+            )
+
     logger.info(
         f"trigger-sync: Fetching data from {body.start_date} to {body.end_date}"
     )
@@ -422,6 +448,7 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
 
     _cache["payload"] = payload
     _cache["synced_at"] = datetime.now(timezone.utc).isoformat()
+    _cache["last_sync_at"] = time.time()
 
     total_records = (
         len(heart_rate)
