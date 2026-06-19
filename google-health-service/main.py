@@ -13,6 +13,7 @@ Run with: uvicorn main:app --reload --port 8000
 import json
 import logging
 import os
+import sys
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -258,11 +259,14 @@ async def get_health_data() -> JSONResponse:
 
     The Cache-Control header (max-age=300) prevents excessive backend querying.
     """
-    # Return cached payload if available and not older than 5 minutes
+    # Return cached payload if available
     if _cache["payload"] is not None and _cache["synced_at"] is not None:
-        from datetime import timedelta
-        synced_time = datetime.fromisoformat(_cache["synced_at"])
-        if datetime.now(timezone.utc) - synced_time < timedelta(minutes=5):
+        synced_at = _cache["synced_at"]
+        if time.time() - synced_at > 14400:
+            stale_payload = {**_cache["payload"], "stale": True}
+            headers = {"Cache-Control": "max-age=300"}
+            return JSONResponse(content=stale_payload, headers=headers)
+        else:
             headers = {"Cache-Control": "max-age=300"}
             return JSONResponse(content=_cache["payload"], headers=headers)
 
@@ -336,8 +340,13 @@ async def get_health_data() -> JSONResponse:
         }
         
         _cache["payload"] = payload
-        _cache["synced_at"] = datetime.now(timezone.utc).isoformat()
+        _cache["synced_at"] = time.time()
         _cache["last_sync_at"] = time.time()
+        
+        # Check size bound
+        payload_size = sys.getsizeof(json.dumps(_cache["payload"]))
+        if payload_size > 50 * 1024 * 1024:
+            logger.warning("Cache payload exceeds 50MB — consider filtering the date range.")
         
         headers = {"Cache-Control": "max-age=300"}
         return JSONResponse(content=payload, headers=headers)
@@ -447,8 +456,13 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
     }
 
     _cache["payload"] = payload
-    _cache["synced_at"] = datetime.now(timezone.utc).isoformat()
+    _cache["synced_at"] = time.time()
     _cache["last_sync_at"] = time.time()
+
+    # Check size bound
+    payload_size = sys.getsizeof(json.dumps(_cache["payload"]))
+    if payload_size > 50 * 1024 * 1024:
+        logger.warning("Cache payload exceeds 50MB — consider filtering the date range.")
 
     total_records = (
         len(heart_rate)

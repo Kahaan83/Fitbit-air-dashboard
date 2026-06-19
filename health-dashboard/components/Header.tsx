@@ -12,7 +12,7 @@ interface HeaderProps {
 
 export function Header({ onOpenSettings }: HeaderProps) {
   const pathname = usePathname();
-  const { dataMode, setDataMode, lastSync, setLiveData, setLastSync, addToast } = useDashboardStore();
+  const { dataMode, setDataMode, lastSync, setLiveData, setLastSync, addToast, liveData } = useDashboardStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
@@ -126,6 +126,11 @@ export function Header({ onOpenSettings }: HeaderProps) {
               <span className="font-mono text-slate-300">
                 {lastSync ? new Date(lastSync).toLocaleTimeString() : "—"}
               </span>
+              {dataMode === "live" && liveData?.stale && (
+                <div className="text-[10px] text-amber-400 font-medium mt-0.5 animate-pulse">
+                  Data may be outdated
+                </div>
+              )}
             </div>
 
             {/* Refresh Button */}

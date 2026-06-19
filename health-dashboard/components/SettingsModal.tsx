@@ -36,8 +36,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setIsLoadingLiveData(true);
+    useDashboardStore.getState().setIsLoadingLiveData(true);
 
+    let success = false;
     try {
       // 1. Send settings/credentials to the backend
       const settingsRes = await fetch("/api/settings", {
@@ -102,6 +103,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setLiveData(livePayload);
         setLastSync(new Date().toISOString());
         setDataMode("live");
+        success = true;
+        useDashboardStore.getState().setIsLoadingLiveData(false);
         
         addToast("Connected — Live Data Mode active! Successfully synced physiological measurements.", "success");
         onClose();
@@ -135,6 +138,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           setLiveData(livePayload);
           setLastSync(new Date().toISOString());
           setDataMode("live");
+          success = true;
+          useDashboardStore.getState().setIsLoadingLiveData(false);
           addToast("Successfully connected to Google Health! Live Data Mode active.", "success");
           onClose();
         } else {
@@ -150,7 +155,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setDataMode("sample");
     } finally {
       setLoading(false);
-      setIsLoadingLiveData(false);
+      if (!success) {
+        useDashboardStore.getState().setIsLoadingLiveData(false);
+      }
     }
   };
 
