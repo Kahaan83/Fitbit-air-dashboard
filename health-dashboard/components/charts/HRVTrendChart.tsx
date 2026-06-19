@@ -33,6 +33,28 @@ export function HRVTrendChart() {
   }
   offset = Math.max(0, Math.min(1, offset));
 
+  const hasAbove = hrv.some((d: any) => d.value >= threshold);
+  const hasBelow = hrv.some((d: any) => d.value < threshold);
+
+  let stop1Color = "#10b981";
+  let stop2Color = "#10b981";
+  let stop3Color = "#f59e0b";
+  let stop4Color = "#f59e0b";
+
+  if (!hasBelow || offset < 0.05) {
+    offset = 0;
+    stop1Color = "#10b981";
+    stop2Color = "#10b981";
+    stop3Color = "#10b981";
+    stop4Color = "#10b981";
+  } else if (!hasAbove || offset > 0.95) {
+    offset = 1;
+    stop1Color = "#f59e0b";
+    stop2Color = "#f59e0b";
+    stop3Color = "#f59e0b";
+    stop4Color = "#f59e0b";
+  }
+
   const formatXAxis = (tickItem: string) => {
     try {
       const parts = tickItem.split("-");
@@ -70,10 +92,10 @@ export function HRVTrendChart() {
           <LineChart data={hrv} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
             <defs>
               <linearGradient id="hrvSplit" x1="0" y1="0" x2="0" y2="1">
-                <stop offset={0} stopColor="#10b981" stopOpacity={1} />
-                <stop offset={offset} stopColor="#10b981" stopOpacity={1} />
-                <stop offset={offset} stopColor="#f59e0b" stopOpacity={1} />
-                <stop offset={1} stopColor="#f59e0b" stopOpacity={1} />
+                <stop offset={0} stopColor={stop1Color} stopOpacity={1} />
+                <stop offset={offset} stopColor={stop2Color} stopOpacity={1} />
+                <stop offset={offset} stopColor={stop3Color} stopOpacity={1} />
+                <stop offset={1} stopColor={stop4Color} stopOpacity={1} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />

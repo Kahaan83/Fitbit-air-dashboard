@@ -10,6 +10,7 @@ export function useChartData() {
       hrv: mock.mockHRV,
       ansBalance: mock.mockANSBalance,
       spo2Nocturnal: mock.mockSpO2Nocturnal,
+      isSpO2Fallback: false,
       skinTemp: mock.mockSkinTemp,
       sleepDebt: mock.mockSleepDebt,
       vo2Max: mock.mockVO2Max,
@@ -72,25 +73,41 @@ export function useChartData() {
     end: d.end,
     hr_peak: d.hr_peak,
     severity: d.severity,
-    date: d.start.split("T")[0],
+    date: new Date(d.start).toLocaleDateString("en-CA"),
   }));
 
   // 7. Nocturnal SpO2 (Group 5-minute resolution oxygen saturation values by date)
   // Live data returns raw OXYGEN_SATURATION measurements during sleep/nocturnal hours.
   const rawSpo2 = liveData.spo2 || [];
   const spo2Grouped: Record<string, mock.SpO2Reading[]> = {};
+  let isSpO2Fallback = false;
 
-  rawSpo2.forEach((d: any) => {
-    const dateStr = d.timestamp.split("T")[0];
-    const timeStr = d.timestamp.substring(11, 16); // Extract HH:MM
-    if (!spo2Grouped[dateStr]) {
-      spo2Grouped[dateStr] = [];
-    }
-    spo2Grouped[dateStr].push({
-      time: timeStr,
-      value: typeof d.value === "number" ? d.value : parseFloat(d.value),
+  if (rawSpo2.length > 0) {
+    rawSpo2.forEach((d: any) => {
+      const dateStr = d.timestamp.split("T")[0];
+      const timeStr = d.timestamp.substring(11, 16); // Extract HH:MM
+      if (!spo2Grouped[dateStr]) {
+        spo2Grouped[dateStr] = [];
+      }
+      spo2Grouped[dateStr].push({
+        time: timeStr,
+        value: typeof d.value === "number" ? d.value : parseFloat(d.value),
+      });
     });
-  });
+  } else {
+    // Fall back to daily_spo2 if raw SpO2 is empty
+    const dailySpo2 = liveData.daily_spo2 || [];
+    if (dailySpo2.length > 0) {
+      isSpO2Fallback = true;
+      dailySpo2.forEach((d: any) => {
+        const dateStr = d.timestamp.split("T")[0];
+        spo2Grouped[dateStr] = [{
+          time: "Daily Avg",
+          value: typeof d.value === "number" ? d.value : parseFloat(d.value),
+        }];
+      });
+    }
+  }
 
   // Ensure each night's readings are chronologically sorted
   Object.keys(spo2Grouped).forEach((dateKey) => {
@@ -182,6 +199,7 @@ export function useChartData() {
     hrv: hrvFinal,
     ansBalance: ansMapped.length > 0 ? ansMapped : mock.mockANSBalance,
     spo2Nocturnal: Object.keys(spo2Grouped).length > 0 ? spo2Grouped : mock.mockSpO2Nocturnal,
+    isSpO2Fallback: Object.keys(spo2Grouped).length > 0 ? isSpO2Fallback : false,
     skinTemp: tempMapped.length > 0 ? tempMapped : mock.mockSkinTemp,
     sleepDebt: sleepDebtFinal,
     vo2Max: vo2MaxMapped.length > 0 ? vo2MaxMapped : mock.mockVO2Max,

@@ -15,7 +15,7 @@ import { useChartData } from "@/lib/useChartData";
 import { MetricInfo } from "@/components/MetricInfo";
 
 export function NocturnalSpO2Chart() {
-  const { spo2Nocturnal } = useChartData();
+  const { spo2Nocturnal, isSpO2Fallback } = useChartData();
   const availableDates = Object.keys(spo2Nocturnal).sort((a, b) => b.localeCompare(a)); // Newest first
 
   const [selectedDate, setSelectedDate] = useState("");
@@ -55,6 +55,11 @@ export function NocturnalSpO2Chart() {
             <MetricInfo metricKey="spo2" />
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">Continuous 5-minute resolution during sleep</p>
+          {isSpO2Fallback && (
+            <p className="text-[11px] text-amber-500 mt-1.5 font-medium">
+              Showing daily averages — intraday SpO2 unavailable for this device.
+            </p>
+          )}
         </div>
 
         {/* Date Selector */}

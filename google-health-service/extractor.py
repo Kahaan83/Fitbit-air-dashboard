@@ -8,6 +8,7 @@ Processes results to fit standard dashboard schema:
 
 import logging
 import os
+import re
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
@@ -22,6 +23,13 @@ logger = logging.getLogger("extractor")
 SKIN_TEMP_AVAILABLE: bool = os.getenv("SKIN_TEMP_AVAILABLE", "true").lower() == "true"
 
 BASE_URL = "https://health.googleapis.com/v4"
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+def _validate_date(value: str, field: str) -> str:
+    if not _DATE_RE.match(value):
+        raise ValueError(f"Invalid {field}: {value!r} — expected YYYY-MM-DD")
+    return value
 
 def _get_auth_headers(credentials: Credentials) -> dict[str, str]:
     """Return Authorization header using the credentials Bearer token."""
@@ -76,6 +84,8 @@ def fetch_heart_rate(
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Fetch intraday heart rate data via GET users/me/dataTypes/heart-rate/dataPoints."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     start_time = f"{date_range['start_date']}T00:00:00Z"
     end_date_dt = datetime.strptime(date_range['end_date'], "%Y-%m-%d")
     next_day_dt = end_date_dt + timedelta(days=1)
@@ -115,6 +125,8 @@ def fetch_intraday_hrv(
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Fetch intraday HRV data via GET users/me/dataTypes/heart-rate-variability/dataPoints."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     start_time = f"{date_range['start_date']}T00:00:00Z"
     end_date_dt = datetime.strptime(date_range['end_date'], "%Y-%m-%d")
     next_day_dt = end_date_dt + timedelta(days=1)
@@ -157,6 +169,8 @@ def fetch_hrv(
     Fetch heart rate variability (RMSSD) data.
     Attempts to fetch intraday HRV data, falling back to daily aggregates if unavailable.
     """
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     intraday = fetch_intraday_hrv(credentials, date_range)
     if intraday:
         return intraday
@@ -169,11 +183,13 @@ def fetch_spo2(
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Fetch oxygen saturation data via GET users/me/dataTypes/oxygen-saturation/dataPoints."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     start_time = f"{date_range['start_date']}T00:00:00Z"
     end_date_dt = datetime.strptime(date_range['end_date'], "%Y-%m-%d")
     next_day_dt = end_date_dt + timedelta(days=1)
     end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
-    filter_expr = f"oxygen_saturation.sample_time.physical_time >= \"{start_time}\" AND oxygen_saturation.sample_time.physical_time < \"{end_time}\""
+    filter_expr = f"oxygen_saturation.sample_time.sleep_time >= \"{start_time}\" AND oxygen_saturation.sample_time.sleep_time < \"{end_time}\""
     
     url = f"{BASE_URL}/users/me/dataTypes/oxygen-saturation/dataPoints"
     response = requests.get(
@@ -191,7 +207,8 @@ def fetch_spo2(
     normalized = []
     for pt in points:
         spo2_data = pt.get("oxygenSaturation", {})
-        ts = spo2_data.get("sampleTime", {}).get("physicalTime")
+        sample_time = spo2_data.get("sampleTime", {})
+        ts = sample_time.get("sleepTime") or sample_time.get("physicalTime")
         val = spo2_data.get("percentage")
         if ts and val is not None:
             normalized.append({
@@ -200,6 +217,10 @@ def fetch_spo2(
                 "data_type": "OXYGEN_SATURATION"
             })
             
+    if not normalized:
+        logger.warning("Intraday SpO2 endpoint returned no data (possibly unsupported by device tier).")
+        return []
+
     logger.info(f"fetch_spo2: {len(normalized)} points returned.")
     return normalized
 
@@ -208,6 +229,8 @@ def fetch_steps(
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Fetch step count data via GET users/me/dataTypes/steps/dataPoints."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     start_time = f"{date_range['start_date']}T00:00:00Z"
     end_date_dt = datetime.strptime(date_range['end_date'], "%Y-%m-%d")
     next_day_dt = end_date_dt + timedelta(days=1)
@@ -247,6 +270,8 @@ def fetch_daily_hrv(
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Fetch daily HRV aggregate via GET users/me/dataTypes/daily-heart-rate-variability/dataPoints."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     url = f"{BASE_URL}/users/me/dataTypes/daily-heart-rate-variability/dataPoints"
     response = requests.get(
         url,
@@ -284,6 +309,8 @@ def fetch_daily_spo2(
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Fetch daily SpO2 aggregate via GET users/me/dataTypes/daily-oxygen-saturation/dataPoints."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     url = f"{BASE_URL}/users/me/dataTypes/daily-oxygen-saturation/dataPoints"
     response = requests.get(
         url,
@@ -320,6 +347,8 @@ def fetch_daily_resting_hr(
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Fetch daily resting heart rate via GET users/me/dataTypes/daily-resting-heart-rate/dataPoints."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     url = f"{BASE_URL}/users/me/dataTypes/daily-resting-heart-rate/dataPoints"
     response = requests.get(
         url,
@@ -356,6 +385,8 @@ def fetch_sleep_temp(
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Fetch daily sleep temperature deviations via GET users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     if not SKIN_TEMP_AVAILABLE:
         logger.info("fetch_sleep_temp: SKIN_TEMP_AVAILABLE=false — skipping.")
         return []
@@ -403,6 +434,8 @@ def fetch_sleep(
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """Fetch sleep sessions and stages via GET users/me/dataTypes/sleep/dataPoints."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
     url = f"{BASE_URL}/users/me/dataTypes/sleep/dataPoints"
     response = requests.get(
         url,
