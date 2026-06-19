@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         client_id: body.clientId,
-        client_secret: body.clientSecret,
+        client_secret: process.env.FITBIT_CLIENT_SECRET || "",
         age: body.age,
         max_hr: body.maxHR,
         resting_hr: body.restingHR,

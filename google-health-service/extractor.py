@@ -8,7 +8,7 @@ Processes results to fit standard dashboard schema:
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import requests
@@ -77,8 +77,10 @@ def fetch_heart_rate(
 ) -> list[dict[str, Any]]:
     """Fetch intraday heart rate data via GET users/me/dataTypes/heart-rate/dataPoints."""
     start_time = f"{date_range['start_date']}T00:00:00Z"
-    end_time = f"{date_range['end_date']}T23:59:59Z"
-    filter_expr = f"heart_rate.sample_time.physical_time >= \"{start_time}\" AND heart_rate.sample_time.physical_time <= \"{end_time}\""
+    end_date_dt = datetime.strptime(date_range['end_date'], "%Y-%m-%d")
+    next_day_dt = end_date_dt + timedelta(days=1)
+    end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
+    filter_expr = f"heart_rate.sample_time.physical_time >= \"{start_time}\" AND heart_rate.sample_time.physical_time < \"{end_time}\""
     
     url = f"{BASE_URL}/users/me/dataTypes/heart-rate/dataPoints"
     response = requests.get(
@@ -108,15 +110,58 @@ def fetch_heart_rate(
     logger.info(f"fetch_heart_rate: {len(normalized)} points returned.")
     return normalized
 
+def fetch_intraday_hrv(
+    credentials: Credentials,
+    date_range: dict[str, str],
+) -> list[dict[str, Any]]:
+    """Fetch intraday HRV data via GET users/me/dataTypes/heart-rate-variability/dataPoints."""
+    start_time = f"{date_range['start_date']}T00:00:00Z"
+    end_date_dt = datetime.strptime(date_range['end_date'], "%Y-%m-%d")
+    next_day_dt = end_date_dt + timedelta(days=1)
+    end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
+    filter_expr = f"heart_rate_variability.sample_time.physical_time >= \"{start_time}\" AND heart_rate_variability.sample_time.physical_time < \"{end_time}\""
+    
+    url = f"{BASE_URL}/users/me/dataTypes/heart-rate-variability/dataPoints"
+    response = requests.get(
+        url,
+        headers=_get_auth_headers(credentials),
+        params={"filter": filter_expr, "pageSize": 10000},
+        timeout=30,
+    )
+    if not _handle_response_errors(response, "fetch_intraday_hrv"):
+        return []
+
+    data = response.json()
+    points = data.get("dataPoints", [])
+    
+    normalized = []
+    for pt in points:
+        hrv_data = pt.get("heartRateVariability", {})
+        ts = hrv_data.get("sampleTime", {}).get("physicalTime")
+        val = hrv_data.get("rootMeanSquareOfSuccessiveDifferencesMilliseconds")
+        if ts and val is not None:
+            normalized.append({
+                "timestamp": ts,
+                "value": float(val),
+                "data_type": "HEART_RATE_VARIABILITY"
+            })
+            
+    logger.info(f"fetch_intraday_hrv: {len(normalized)} points returned.")
+    return normalized
+
 def fetch_hrv(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
     """
-    Fetch intraday heart rate variability (RMSSD) data.
-    Google Health API provides daily HRV metrics via daily-heart-rate-variability.
-    If intraday HRV is requested, we map to daily-heart-rate-variability.
+    Fetch heart rate variability (RMSSD) data.
+    Attempts to fetch intraday HRV data, falling back to daily aggregates if unavailable.
     """
+    intraday = fetch_intraday_hrv(credentials, date_range)
+    if intraday:
+        return intraday
+        
+    logger.warning("Intraday HRV is unavailable. Falling back to daily aggregates.")
     return fetch_daily_hrv(credentials, date_range)
 
 def fetch_spo2(
@@ -125,8 +170,10 @@ def fetch_spo2(
 ) -> list[dict[str, Any]]:
     """Fetch oxygen saturation data via GET users/me/dataTypes/oxygen-saturation/dataPoints."""
     start_time = f"{date_range['start_date']}T00:00:00Z"
-    end_time = f"{date_range['end_date']}T23:59:59Z"
-    filter_expr = f"oxygen_saturation.sample_time.physical_time >= \"{start_time}\" AND oxygen_saturation.sample_time.physical_time <= \"{end_time}\""
+    end_date_dt = datetime.strptime(date_range['end_date'], "%Y-%m-%d")
+    next_day_dt = end_date_dt + timedelta(days=1)
+    end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
+    filter_expr = f"oxygen_saturation.sample_time.physical_time >= \"{start_time}\" AND oxygen_saturation.sample_time.physical_time < \"{end_time}\""
     
     url = f"{BASE_URL}/users/me/dataTypes/oxygen-saturation/dataPoints"
     response = requests.get(
@@ -162,8 +209,10 @@ def fetch_steps(
 ) -> list[dict[str, Any]]:
     """Fetch step count data via GET users/me/dataTypes/steps/dataPoints."""
     start_time = f"{date_range['start_date']}T00:00:00Z"
-    end_time = f"{date_range['end_date']}T23:59:59Z"
-    filter_expr = f"steps.interval.start_time >= \"{start_time}\" AND steps.interval.start_time <= \"{end_time}\""
+    end_date_dt = datetime.strptime(date_range['end_date'], "%Y-%m-%d")
+    next_day_dt = end_date_dt + timedelta(days=1)
+    end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
+    filter_expr = f"steps.interval.start_time >= \"{start_time}\" AND steps.interval.start_time < \"{end_time}\""
     
     url = f"{BASE_URL}/users/me/dataTypes/steps/dataPoints"
     response = requests.get(
