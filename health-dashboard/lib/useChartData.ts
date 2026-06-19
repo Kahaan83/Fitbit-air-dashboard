@@ -117,7 +117,7 @@ export function useChartData() {
   // ── Derived analytics for live mode ─────────────────────────────────────────
 
   // Resolve final hrv array (live or mock fallback)
-  const hrvFinal: mock.HRVData[] = hrvMapped.length > 0 ? hrvMapped : mock.mockHRV;
+  const hrvFinal: mock.HRVData[] = hrvMapped;
 
   // 1. hrvRolling7: rolling 7-day average RMSSD
   const last7Hrv = hrvFinal.slice(-7);
@@ -141,7 +141,7 @@ export function useChartData() {
   const peakHRToday = todayHR.length > 0 ? Math.max(...todayHR) : 0;
 
   // 4. sleepEfficiency: most recent night's actual_hours / (actual_hours + 0.5) * 100
-  const sleepDebtFinal = sleepDebtMapped.length > 0 ? sleepDebtMapped : mock.mockSleepDebt;
+  const sleepDebtFinal = sleepDebtMapped;
   const lastSleepDebt = sleepDebtFinal[sleepDebtFinal.length - 1];
   const sleepEfficiency = lastSleepDebt
     ? Math.round((lastSleepDebt.actual_hours / (lastSleepDebt.actual_hours + 0.5)) * 100 * 10) / 10
@@ -149,7 +149,7 @@ export function useChartData() {
 
   // 5. remPct: REM % from most recent live sleep session
   const liveSleep = liveData.sleep || [];
-  let remPct = 24.3; // sample fallback
+  let remPct = 0;
   if (liveSleep.length > 0) {
     const lastSession = liveSleep[liveSleep.length - 1];
     const stages = lastSession?.value?.stages ?? {};
@@ -161,7 +161,7 @@ export function useChartData() {
 
   // 6. stepGoalHitRate: % of days with >= 10000 steps
   const rawSteps = liveData.steps || [];
-  let stepGoalHitRate = 63; // sample fallback
+  let stepGoalHitRate = 0;
   if (rawSteps.length > 0) {
     const dailyStepMap: Record<string, number> = {};
     rawSteps.forEach((d: any) => {
@@ -185,7 +185,7 @@ export function useChartData() {
   }
 
   // 8. avgDeepSleep: mean deep sleep minutes across all live sessions
-  let avgDeepSleep = 72; // sample fallback
+  let avgDeepSleep = 0;
   if (liveSleep.length > 0) {
     const deepMins = liveSleep
       .map((s: any) => s?.value?.stages?.deep ?? null)
@@ -196,14 +196,14 @@ export function useChartData() {
   }
 
   return {
-    hrv: hrvFinal,
-    ansBalance: ansMapped.length > 0 ? ansMapped : mock.mockANSBalance,
-    spo2Nocturnal: Object.keys(spo2Grouped).length > 0 ? spo2Grouped : mock.mockSpO2Nocturnal,
-    isSpO2Fallback: Object.keys(spo2Grouped).length > 0 ? isSpO2Fallback : false,
-    skinTemp: tempMapped.length > 0 ? tempMapped : mock.mockSkinTemp,
-    sleepDebt: sleepDebtFinal,
-    vo2Max: vo2MaxMapped.length > 0 ? vo2MaxMapped : mock.mockVO2Max,
-    acuteStress: stressMapped.length > 0 ? stressMapped : mock.mockAcuteStress,
+    hrv: hrvMapped,
+    ansBalance: ansMapped,
+    spo2Nocturnal: spo2Grouped,
+    isSpO2Fallback: isSpO2Fallback,
+    skinTemp: tempMapped,
+    sleepDebt: sleepDebtMapped,
+    vo2Max: vo2MaxMapped,
+    acuteStress: stressMapped,
     // Analytics
     hrvRolling7,
     recoveryScore,

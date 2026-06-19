@@ -295,7 +295,7 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
     <div ref={ref} className="relative inline-flex items-center">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className={`rounded-full p-0.5 text-slate-500 hover:text-slate-300 transition-colors hover:bg-white/10 focus:outline-none`}
+        className={`rounded-full p-0.5 text-slate-400 hover:text-slate-300 transition-colors hover:bg-white/10 focus:outline-none`}
         aria-label={`Info about ${def.name}`}
         title={`What is ${def.name}?`}
       >
@@ -313,7 +313,7 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
             <h3 className="font-bold text-white text-sm leading-tight">{def.name}</h3>
             <button
               onClick={() => setOpen(false)}
-              className="text-slate-500 hover:text-slate-300 transition-colors shrink-0 mt-0.5"
+              className="text-slate-400 hover:text-slate-300 transition-colors shrink-0 mt-0.5"
             >
               ✕
             </button>

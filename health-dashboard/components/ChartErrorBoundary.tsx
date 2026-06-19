@@ -30,7 +30,7 @@ export class ChartErrorBoundary extends Component<Props, State> {
       return (
         <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-6 flex flex-col justify-center items-center text-center min-h-[200px] w-full">
           <h3 className="text-sm font-semibold text-slate-200 mb-1">{this.props.name}</h3>
-          <p className="text-xs text-slate-500">Failed to load — data may be unavailable.</p>
+          <p className="text-xs text-slate-400">Failed to load — data may be unavailable.</p>
         </div>
       );
     }

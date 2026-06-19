@@ -22,7 +22,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ValidationError
+from models import HealthDataResponse
 
 from auth import get_credentials, get_token_info
 from derived_metrics import (
@@ -247,7 +248,17 @@ async def get_status() -> JSONResponse:
     return JSONResponse(content=info)
 
 
-@app.get("/api/health-data", summary="Full raw and derived health data payload")
+def _validate_and_respond(payload: dict[str, Any], headers: dict[str, str]) -> JSONResponse:
+    try:
+        HealthDataResponse.model_validate(payload)
+        return JSONResponse(content=payload, headers=headers)
+    except ValidationError as e:
+        logger.error(f"Cached payload validation failed: {e}")
+        warning_headers = {**headers, "X-Schema-Warning": "validation-failed"}
+        return JSONResponse(content=payload, headers=warning_headers)
+
+
+@app.get("/api/health-data", response_model=HealthDataResponse, summary="Full raw and derived health data payload")
 async def get_health_data() -> JSONResponse:
     """
     Returns the cached health data payload.
@@ -265,10 +276,10 @@ async def get_health_data() -> JSONResponse:
         if time.time() - synced_at > 14400:
             stale_payload = {**_cache["payload"], "stale": True}
             headers = {"Cache-Control": "max-age=300"}
-            return JSONResponse(content=stale_payload, headers=headers)
+            return _validate_and_respond(stale_payload, headers)
         else:
             headers = {"Cache-Control": "max-age=300"}
-            return JSONResponse(content=_cache["payload"], headers=headers)
+            return _validate_and_respond(_cache["payload"], headers)
 
     # Cache is empty: try to run automatic sync for the past 30 days
     from datetime import timedelta
@@ -349,7 +360,7 @@ async def get_health_data() -> JSONResponse:
             logger.warning("Cache payload exceeds 50MB — consider filtering the date range.")
         
         headers = {"Cache-Control": "max-age=300"}
-        return JSONResponse(content=payload, headers=headers)
+        return _validate_and_respond(payload, headers)
         
     except Exception as e:
         logger.warning(
@@ -358,7 +369,7 @@ async def get_health_data() -> JSONResponse:
         # Graceful fallback to empty shell for Sample Mode
         payload = _empty_health_payload()
         headers = {"Cache-Control": "max-age=300"}
-        return JSONResponse(content=payload, headers=headers)
+        return _validate_and_respond(payload, headers)
 
 
 @app.post("/api/trigger-sync", summary="Force re-sync for a date range")
@@ -493,3 +504,9 @@ async def root() -> dict[str, str]:
         "status": "running",
         "docs": "http://localhost:8000/docs",
     }
+
+
+@app.get("/health", include_in_schema=False)
+async def health() -> dict[str, str]:
+    return {"status": "healthy"}
+

@@ -79,7 +79,23 @@ BACKEND_PID=$!
 echo "[OK] Backend launched (PID $BACKEND_PID)."
 
 # Give the backend a moment to start up
-sleep 1
+for i in {1..10}; do
+  if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+    echo "Backend ready."
+    break
+  fi
+  if [ $i -eq 10 ]; then
+    echo "ERROR: Backend failed to start after 10 seconds. Check logs above."
+    exit 1
+  fi
+  sleep 1
+done
+
+if ! kill -0 $BACKEND_PID 2>/dev/null; then
+  echo "ERROR: Backend process exited unexpectedly."
+  exit 1
+fi
+
 
 # ── 7. Open browser ───────────────────────────────────────────────────
 echo "Opening http://localhost:3000 in your browser..."

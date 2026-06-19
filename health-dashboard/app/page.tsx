@@ -35,7 +35,7 @@ export default function OverviewPage() {
       {/* Page Title & Heading */}
       <div>
         <h1 className="text-xl font-semibold tracking-normal text-white">Physiological Overview</h1>
-        <p className="text-slate-500 text-[13px] mt-1">30-day physiological summary</p>
+        <p className="text-slate-400 text-[13px] mt-1">30-day physiological summary</p>
       </div>
 
       {/* Data Streams Strip */}
@@ -55,7 +55,7 @@ export default function OverviewPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Activity className="h-5 w-5 text-violet-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Latest HRV (RMSSD)</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Latest HRV (RMSSD)</span>
               <MetricInfo metricKey="hrv_overview" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -75,7 +75,7 @@ export default function OverviewPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <TrendingUp className="h-5 w-5 text-indigo-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Cardiovascular VO2 Max</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Cardiovascular VO2 Max</span>
               <MetricInfo metricKey="vo2max" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -93,7 +93,7 @@ export default function OverviewPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Zap className="h-5 w-5 text-orange-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Detected Stress Events</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Detected Stress Events</span>
               <MetricInfo metricKey="acute_stress" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -126,7 +126,7 @@ export default function OverviewPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <HeartPulse className="h-5 w-5 text-violet-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">7-day HRV avg</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">7-day HRV avg</span>
               <MetricInfo metricKey="hrv_rolling" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -146,7 +146,7 @@ export default function OverviewPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <BatteryCharging className="h-5 w-5 text-emerald-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Recovery score</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Recovery score</span>
               <MetricInfo metricKey="recovery_score" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -168,7 +168,7 @@ export default function OverviewPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Moon className="h-5 w-5 text-sky-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Sleep efficiency</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Sleep efficiency</span>
               <MetricInfo metricKey="sleep_efficiency" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -188,7 +188,7 @@ export default function OverviewPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Footprints className="h-5 w-5 text-teal-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Step goal rate</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Step goal rate</span>
               <MetricInfo metricKey="step_goal_rate" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">

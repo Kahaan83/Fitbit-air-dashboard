@@ -1,15 +1,66 @@
 @import "tailwindcss";
 
-:root {
-  --background: #030712;
-  --foreground: #f3f4f6;
-  --card: #111827;
-  --card-border: rgba(255, 255, 255, 0.08);
+[data-theme="premium"], :root {
+  --bg-base:       #09090F;
+  --bg-surface:    #111118;
+  --bg-card:       #16161F;
+  --bg-card-hover: #1C1C28;
+  --border-subtle: rgba(124,109,250,0.08);
+  --border-soft:   rgba(124,109,250,0.15);
+  --border-medium: rgba(124,109,250,0.25);
+  --accent-primary:   #7C6DFA;
+  --accent-teal:      #4ECDC4;
+  --accent-green:     #22D3A5;
+  --accent-amber:     #F59E0B;
+  --accent-red:       #F4546A;
+  --accent-sky:       #38BDF8;
+  --text-primary:     #E8E8F0;
+  --text-secondary:   #9090A8;
+  --text-tertiary:    #55556A;
+  --chart-hrv:    #7C6DFA;
+  --chart-spo2:   #4ECDC4;
+  --chart-hr:     #F4546A;
+  --chart-stress: #F59E0B;
+  --chart-sleep:  #38BDF8;
+  --chart-zone1:  #44445A;
+  --chart-zone2:  #2563EB;
+  --chart-zone3:  #22D3A5;
+  --chart-zone4:  #F59E0B;
+  --chart-zone5:  #F4546A;
+}
+
+[data-theme="whoop"] {
+  --bg-base:       #000000;
+  --bg-surface:    #0A0A0A;
+  --bg-card:       #111111;
+  --bg-card-hover: #191919;
+  --border-subtle: rgba(255,255,255,0.04);
+  --border-soft:   rgba(255,255,255,0.08);
+  --border-medium: rgba(255,255,255,0.14);
+  --accent-primary:   #00FF9C;
+  --accent-teal:      #00D4FF;
+  --accent-green:     #00FF9C;
+  --accent-amber:     #FFB800;
+  --accent-red:       #FF3B5C;
+  --accent-sky:       #00D4FF;
+  --text-primary:     #FFFFFF;
+  --text-secondary:   #888888;
+  --text-tertiary:    #444444;
+  --chart-hrv:    #00FF9C;
+  --chart-spo2:   #00D4FF;
+  --chart-hr:     #FF3B5C;
+  --chart-stress: #FFB800;
+  --chart-sleep:  #00D4FF;
+  --chart-zone1:  #333333;
+  --chart-zone2:  #00D4FF;
+  --chart-zone3:  #00FF9C;
+  --chart-zone4:  #FFB800;
+  --chart-zone5:  #FF3B5C;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: var(--bg-base);
+  color: var(--text-primary);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
 }

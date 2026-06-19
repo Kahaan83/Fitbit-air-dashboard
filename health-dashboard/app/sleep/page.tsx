@@ -30,7 +30,7 @@ export default function SleepPage() {
       {/* Page Header */}
       <div>
         <h1 className="text-xl font-semibold tracking-normal text-white">Sleep & Oxygen Saturation</h1>
-        <p className="text-slate-500 text-[13px] mt-1">Sleep quality and oxygen saturation</p>
+        <p className="text-slate-400 text-[13px] mt-1">Sleep quality and oxygen saturation</p>
       </div>
 
       {/* Data Streams Strip */}
@@ -50,7 +50,7 @@ export default function SleepPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Moon className="h-5 w-5 text-violet-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average Sleep Duration</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Average Sleep Duration</span>
               <MetricInfo metricKey="sleep_duration" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -70,7 +70,7 @@ export default function SleepPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Award className="h-5 w-5 text-indigo-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average Sleep Debt</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Average Sleep Debt</span>
               <MetricInfo metricKey="sleep_debt" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -93,7 +93,7 @@ export default function SleepPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <ShieldAlert className="h-5 w-5 text-red-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Hypoxemia Nights</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Hypoxemia Nights</span>
               <MetricInfo metricKey="hypoxemia" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -125,7 +125,7 @@ export default function SleepPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Moon className="h-5 w-5 text-violet-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">REM %</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">REM %</span>
               <MetricInfo metricKey="rem_pct" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -145,7 +145,7 @@ export default function SleepPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Award className="h-5 w-5 text-indigo-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Good sleep streak</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Good sleep streak</span>
               <MetricInfo metricKey="good_sleep_streak" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -167,7 +167,7 @@ export default function SleepPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Activity className="h-5 w-5 text-sky-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Avg deep sleep</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Avg deep sleep</span>
               <MetricInfo metricKey="avg_deep_sleep" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">

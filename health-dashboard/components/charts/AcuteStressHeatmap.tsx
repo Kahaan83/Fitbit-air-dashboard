@@ -5,6 +5,7 @@ import { useChartData } from "@/lib/useChartData";
 import { getPastDates, AcuteStressEvent } from "@/lib/mockData";
 import { X, Flame, AlertCircle } from "lucide-react";
 import { MetricInfo } from "@/components/MetricInfo";
+import { EmptyChartState } from "./EmptyChartState";
 
 export function AcuteStressHeatmap() {
   const { acuteStress } = useChartData();
@@ -44,7 +45,7 @@ export function AcuteStressHeatmap() {
             <h3 className="text-sm font-semibold text-white">Acute Stress Heatmap</h3>
             <MetricInfo metricKey="acute_stress" />
           </div>
-          <p className="text-[11px] text-slate-500 mt-0.5">
+          <p className="text-[11px] text-slate-400 mt-0.5">
             Cross-references heart rate spikes against zero-movement intervals
           </p>
         </div>
@@ -67,44 +68,50 @@ export function AcuteStressHeatmap() {
       </div>
 
       {/* Grid Layout: 30 days mapped to a 7-column calendar-style view */}
-      <div className="grid grid-cols-7 gap-2 max-w-lg mx-auto md:mx-0">
-        {/* Render Day headers for columns */}
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="text-center text-[10px] font-bold uppercase tracking-wider text-slate-500 py-1">
-            {day}
-          </div>
-        ))}
+      {acuteStress && acuteStress.length > 0 ? (
+        <div className="grid grid-cols-7 gap-2 max-w-lg mx-auto md:mx-0">
+          {/* Render Day headers for columns */}
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            <div key={day} className="text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 py-1">
+              {day}
+            </div>
+          ))}
 
-        {/* Padding for grid alignment: align first date to correct weekday index */}
-        {Array.from({ length: new Date(dates[0]).getDay() }).map((_, i) => (
-          <div key={`pad-${i}`} className="h-11 rounded-lg bg-transparent" />
-        ))}
+          {/* Padding for grid alignment: align first date to correct weekday index */}
+          {Array.from({ length: new Date(dates[0]).getDay() }).map((_, i) => (
+            <div key={`pad-${i}`} className="h-11 rounded-lg bg-transparent" />
+          ))}
 
-        {/* Heatmap cells */}
-        {dates.map((date) => {
-          const dayEvents = eventsByDate[date] || [];
-          const count = dayEvents.length;
-          const labelDate = new Date(date).getUTCDate();
-          return (
-            <button
-              key={date}
-              onClick={() => setActiveDate(date)}
-              className={`h-11 rounded-lg flex flex-col justify-between p-1.5 transition-all text-left group cursor-pointer ${getCellColor(
-                count
-              )}`}
-            >
-              <span className="text-[10px] font-bold text-slate-400 group-hover:text-white transition-colors">
-                {labelDate}
-              </span>
-              {count > 0 && (
-                <span className="self-end text-[10px] font-bold font-mono">
-                  {count}
+          {/* Heatmap cells */}
+          {dates.map((date) => {
+            const dayEvents = eventsByDate[date] || [];
+            const count = dayEvents.length;
+            const labelDate = new Date(date).getUTCDate();
+            return (
+              <button
+                key={date}
+                onClick={() => setActiveDate(date)}
+                className={`h-11 rounded-lg flex flex-col justify-between p-1.5 transition-all text-left group cursor-pointer ${getCellColor(
+                  count
+                )}`}
+              >
+                <span className="text-[10px] font-bold text-slate-400 group-hover:text-white transition-colors">
+                  {labelDate}
                 </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+                {count > 0 && (
+                  <span className="self-end text-[10px] font-bold font-mono">
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="h-44 w-full flex items-center justify-center">
+          <EmptyChartState subtitle="Acute stress detection requires both heart rate and step recordings. Sync your Fitbit data." />
+        </div>
+      )}
 
       {/* Detail Popover Panel on cell selection */}
       {activeDate && (
@@ -129,7 +136,7 @@ export function AcuteStressHeatmap() {
 
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
             {activeEvents.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-slate-500 text-xs py-8">
+              <div className="flex h-full flex-col items-center justify-center text-slate-400 text-xs py-8">
                 <AlertCircle className="h-8 w-8 text-slate-600 mb-2" />
                 No stress events detected. HRV and heart rate values were within optimal baseline ranges.
               </div>
@@ -158,7 +165,7 @@ export function AcuteStressHeatmap() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs text-slate-500">Peak HR</span>
+                    <span className="text-xs text-slate-400">Peak HR</span>
                     <p className="text-sm font-bold font-mono text-white">{event.hr_peak} bpm</p>
                   </div>
                 </div>
