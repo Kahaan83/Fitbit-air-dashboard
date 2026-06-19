@@ -24,7 +24,7 @@ export default function RecoveryPage() {
       {/* Page Header */}
       <div>
         <h1 className="text-xl font-semibold tracking-normal text-white">Autonomic Recovery</h1>
-        <p className="text-slate-500 text-[13px] mt-1">Autonomic tone and thermal recovery</p>
+        <p className="text-slate-400 text-[13px] mt-1">Autonomic tone and thermal recovery</p>
       </div>
 
       {/* Data Streams Strip */}
@@ -43,7 +43,7 @@ export default function RecoveryPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Activity className="h-5 w-5 text-indigo-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average LF/HF Ratio</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Average LF/HF Ratio</span>
               <MetricInfo metricKey="lf_hf_ratio" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">
@@ -62,7 +62,7 @@ export default function RecoveryPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Thermometer className="h-5 w-5 text-orange-400" />
-              <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Latest Sleep Temp Deviation</span>
+              <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Latest Sleep Temp Deviation</span>
               <MetricInfo metricKey="sleep_temp_deviation" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1.5">

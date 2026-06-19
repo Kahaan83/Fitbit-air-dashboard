@@ -122,7 +122,7 @@ export function Header({ onOpenSettings }: HeaderProps) {
           <div className="flex items-center gap-3">
             {/* Sync timestamp */}
             <div className="hidden text-right text-xs md:block">
-              <span className="text-slate-500">Last Sync:</span>{" "}
+              <span className="text-slate-400">Last Sync:</span>{" "}
               <span className="font-mono text-slate-300">
                 {lastSync ? new Date(lastSync).toLocaleTimeString() : "—"}
               </span>
@@ -153,11 +153,12 @@ export function Header({ onOpenSettings }: HeaderProps) {
               <button
                 onClick={handleToggleMode}
                 disabled={isToggling}
+                aria-pressed={dataMode === "live"}
                 className={`relative inline-flex h-6 w-16 items-center rounded-full border transition-all duration-300 ${
                   dataMode === "live"
                     ? "bg-emerald-500/20 border-emerald-500/40 cursor-pointer shadow-[0_0_12px_-3px_rgba(16,185,129,0.25)]"
                     : "bg-slate-800 border-slate-700 cursor-pointer"
-                } disabled:opacity-50`}
+                } disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-none`}
                 title="Click to toggle between Mock and Live Google Health API data"
               >
                 <span

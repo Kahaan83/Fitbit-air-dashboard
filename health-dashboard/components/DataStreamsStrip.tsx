@@ -89,7 +89,7 @@ export function DataStreamsStrip() {
           return (
             <div key={stream.name} className="flex items-center gap-2 text-slate-300 font-mono">
               <span className={`h-2 w-2 rounded-full shadow-md ${dotColor}`} />
-              <StreamIcon className="h-3.5 w-3.5 text-slate-500" />
+              <StreamIcon className="h-3.5 w-3.5 text-slate-400" />
               <div className="flex items-center gap-1">
                 <span>{stream.name}</span>
                 <MetricInfo metricKey={stream.key} size="sm" />

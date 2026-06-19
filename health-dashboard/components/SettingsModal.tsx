@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDashboardStore } from "@/lib/store";
 import { X, RefreshCw } from "lucide-react";
 
@@ -11,6 +11,71 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { settings, updateSettings, dataMode, setDataMode, addToast, setIsLoadingLiveData } = useDashboardStore();
+
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement;
+
+      const modalElement = modalRef.current;
+      if (modalElement) {
+        const focusableElements = modalElement.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length > 0) {
+          focusableElements[0].focus();
+        }
+      }
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          onClose();
+          return;
+        }
+
+        if (e.key === "Tab") {
+          const modalElement = modalRef.current;
+          if (!modalElement) return;
+
+          const focusableElements = Array.from(
+            modalElement.querySelectorAll<HTMLElement>(
+              'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )
+          );
+
+          if (focusableElements.length === 0) {
+            e.preventDefault();
+            return;
+          }
+
+          const firstElement = focusableElements[0];
+          const lastElement = focusableElements[focusableElements.length - 1];
+
+          if (e.shiftKey) {
+            if (document.activeElement === firstElement) {
+              lastElement.focus();
+              e.preventDefault();
+            }
+          } else {
+            if (document.activeElement === lastElement) {
+              firstElement.focus();
+              e.preventDefault();
+            }
+          }
+        }
+      };
+
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+        if (previousFocusRef.current) {
+          previousFocusRef.current.focus();
+        }
+      };
+    }
+  }, [isOpen, onClose]);
 
   // Local state for settings form
   const [clientId, setClientId] = useState("");
@@ -168,7 +233,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+    <div ref={modalRef} className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
       <div className="absolute inset-0 overflow-hidden">
         {/* Backdrop overlay */}
         <div
@@ -340,7 +405,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       },
                     ].map((scopeObj, i) => (
                       <div key={i} className="flex gap-2.5 rounded-lg border border-white/5 bg-slate-950/40 p-2.5">
-                        <span className="mt-0.5 text-slate-500 select-none">—</span>
+                        <span className="mt-0.5 text-slate-400 select-none">—</span>
                         <div>
                           <p className="font-semibold text-slate-200">{scopeObj.title}</p>
                           <p className="text-[10px] text-slate-600 font-mono mb-1">{scopeObj.scope}</p>
@@ -371,7 +436,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <button
                     type="button"
                     onClick={handleResetToSample}
-                    className="w-full py-2 text-slate-500 hover:text-slate-300 text-sm text-center transition-colors"
+                    className="w-full py-2 text-slate-400 hover:text-slate-300 text-sm text-center transition-colors"
                   >
                     Reset to Sample Data
                   </button>

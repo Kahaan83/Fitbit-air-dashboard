@@ -114,7 +114,7 @@ function MetricCard({ icon, label, value, unit, sub, color, sparkPoints, latestT
       {/* Value */}
       <div>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">{label}</span>
+          <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">{label}</span>
           {metricKey && <MetricInfo metricKey={metricKey} size="sm" />}
         </div>
         <div className="flex items-baseline gap-1.5 mt-1">
@@ -123,7 +123,7 @@ function MetricCard({ icon, label, value, unit, sub, color, sparkPoints, latestT
           </span>
           <span className="text-sm text-slate-400 font-medium">{unit}</span>
         </div>
-        {sub && <p className="text-xs text-slate-500 mt-1">{sub}</p>}
+        {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
       </div>
 
       {/* Bottom: last reading time */}
@@ -144,7 +144,7 @@ function RawTable({ title, rows, columns }: {
   columns: { key: string; label: string; format?: (v: any) => string }[];
 }) {
   if (!rows.length) return (
-    <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-6 text-center text-slate-500 text-sm">
+    <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-6 text-center text-slate-400 text-sm">
       No data available for <span className="font-semibold text-slate-400">{title}</span>
     </div>
   );
@@ -154,14 +154,14 @@ function RawTable({ title, rows, columns }: {
       <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
         <Database className="h-4 w-4 text-indigo-400" />
         <span className="text-sm font-semibold text-slate-200">{title}</span>
-        <span className="ml-auto text-xs text-slate-500 font-mono">{rows.length} rows</span>
+        <span className="ml-auto text-xs text-slate-400 font-mono">{rows.length} rows</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-white/5">
               {columns.map((c) => (
-                <th key={c.label} className="px-4 py-2.5 text-left text-slate-500 font-semibold uppercase tracking-wider">
+                <th key={c.label} className="px-4 py-2.5 text-left text-slate-400 font-semibold uppercase tracking-wider">
                   {c.label}
                 </th>
               ))}
@@ -272,7 +272,7 @@ export default function RawMetricsPage() {
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-normal text-white">Raw Metrics</h1>
-          <p className="text-slate-500 text-[13px] mt-1">All data streams from Google Health API</p>
+          <p className="text-slate-400 text-[13px] mt-1">All data streams from Google Health API</p>
         </div>
         <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold border self-start md:self-auto ${
           isLive
@@ -414,7 +414,7 @@ export default function RawMetricsPage() {
               return (
                 <div key={item.label} className="rounded-xl border border-white/5 bg-white/3 p-3">
                   <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">{item.label}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">{item.label}</span>
                     <MetricInfo metricKey={item.metricKey} size="sm" />
                   </div>
                   <div className={`text-2xl font-black font-mono mt-1 ${colorCls[item.color] ?? "text-white"}`}>{item.value}</div>
@@ -431,7 +431,7 @@ export default function RawMetricsPage() {
         <h2 className="text-base font-semibold text-slate-300 flex items-center gap-2">
           <Database className="h-4 w-4 text-indigo-400" />
           Raw Data Tables
-          <span className="text-xs text-slate-500 font-normal">(Most recent 50 records shown per stream)</span>
+          <span className="text-xs text-slate-400 font-normal">(Most recent 50 records shown per stream)</span>
         </h2>
 
         {/* Heart Rate raw table */}
