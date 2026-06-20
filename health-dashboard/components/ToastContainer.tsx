@@ -11,24 +11,24 @@ export function ToastContainer() {
   return (
     <div className="fixed top-0 right-0 z-50 flex flex-col space-y-2 p-4 max-w-sm w-full pointer-events-none">
       {toasts.map((toast) => {
-        let bgClass = "bg-slate-700 border-slate-600";
-        let icon = <Info className="h-4 w-4 text-white" />;
+        let bgClass = "bg-[var(--bg-card)] border-[var(--border-medium)] text-[var(--text-primary)]";
+        let icon = <Info className="h-4 w-4 text-[var(--accent-primary)]" />;
 
         if (toast.type === "success") {
-          bgClass = "bg-emerald-600 border-emerald-500";
-          icon = <CheckCircle className="h-4 w-4 text-white" />;
+          bgClass = "bg-[var(--accent-green)]/10 border-[var(--accent-green)]/30 text-[var(--accent-green)]";
+          icon = <CheckCircle className="h-4 w-4 text-[var(--accent-green)]" />;
         } else if (toast.type === "error") {
-          bgClass = "bg-red-600 border-red-500";
-          icon = <AlertCircle className="h-4 w-4 text-white" />;
+          bgClass = "bg-[var(--accent-red)]/10 border-[var(--accent-red)]/30 text-[var(--accent-red)]";
+          icon = <AlertCircle className="h-4 w-4 text-[var(--accent-red)]" />;
         } else if (toast.type === "info") {
-          bgClass = "bg-slate-700 border-slate-600";
-          icon = <Info className="h-4 w-4 text-white" />;
+          bgClass = "bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]";
+          icon = <Info className="h-4 w-4 text-[var(--accent-primary)]" />;
         }
 
         return (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-white shadow-xl transition-all duration-300 animate-slideIn ${bgClass}`}
+            className={`pointer-events-auto flex items-center justify-between gap-3 rounded-xl border px-4 py-3 shadow-xl transition-all duration-300 animate-slideIn ${bgClass}`}
           >
             <div className="flex items-center gap-2">
               {icon}
@@ -36,7 +36,7 @@ export function ToastContainer() {
             </div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="rounded-lg p-0.5 text-white/80 hover:bg-white/10 hover:text-white transition-colors shrink-0"
+              className="rounded-lg p-0.5 opacity-80 hover:opacity-100 transition-opacity shrink-0"
             >
               <X className="h-3.5 w-3.5" />
             </button>

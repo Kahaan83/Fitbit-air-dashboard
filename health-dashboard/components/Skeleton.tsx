@@ -3,7 +3,7 @@ import React from "react";
 /** Matches scorecard dimensions: rounded-xl border border-white/8 bg-slate-900/60 p-4 h-24 */
 export function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-white/8 bg-slate-900/60 p-4 h-24">
+    <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)]/60 p-4 h-24">
       <div className="h-full flex flex-col justify-between">
         {/* Label row placeholder */}
         <div className="shimmer h-3 w-24 rounded bg-white/8" />
@@ -19,7 +19,7 @@ export function SkeletonCard() {
 /** Matches chart card dimensions: rounded-xl border border-white/8 bg-slate-900/60 p-5 h-72 */
 export function SkeletonChart() {
   return (
-    <div className="rounded-xl border border-white/8 bg-slate-900/60 p-5 h-72">
+    <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)]/60 p-5 h-72">
       <div className="flex flex-col h-full gap-3">
         {/* Title line */}
         <div className="shimmer h-4 w-40 rounded bg-white/8" />

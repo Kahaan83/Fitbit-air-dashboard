@@ -265,7 +265,7 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
       if (
         parent.classList.contains("glow-card") ||
         parent.classList.contains("rounded-2xl") ||
-        (parent.tagName === "DIV" && (parent.className.includes("border") || parent.className.includes("bg-slate")))
+        (parent.tagName === "DIV" && (parent.className.includes("border") || parent.className.includes("bg-")))
       ) {
         if (open) {
           parent.style.zIndex = "40";
@@ -295,7 +295,7 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
     <div ref={ref} className="relative inline-flex items-center">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className={`rounded-full p-0.5 text-slate-400 hover:text-slate-300 transition-colors hover:bg-white/10 focus:outline-none`}
+        className={`rounded-full p-0.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors hover:bg-white/10 focus:outline-none`}
         aria-label={`Info about ${def.name}`}
         title={`What is ${def.name}?`}
       >
@@ -304,48 +304,48 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
 
       {open && (
         <div
-          className="absolute z-50 right-0 top-6 mt-1 w-80 rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-xl shadow-2xl shadow-black/60 p-5 text-sm"
+          className="absolute z-50 right-0 top-6 mt-1 w-80 rounded-2xl border border-[var(--border-medium)] bg-[var(--bg-surface)]/95 backdrop-blur-xl shadow-2xl shadow-black/60 p-5 text-sm"
           style={{ minWidth: "300px" }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-3">
-            <h3 className="font-bold text-white text-sm leading-tight">{def.name}</h3>
+            <h3 className="font-bold text-[var(--text-primary)] text-sm leading-tight">{def.name}</h3>
             <button
               onClick={() => setOpen(false)}
-              className="text-slate-400 hover:text-slate-300 transition-colors shrink-0 mt-0.5"
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 mt-0.5"
             >
               ✕
             </button>
           </div>
 
           {/* What it means */}
-          <p className="text-slate-300 text-xs leading-relaxed mb-4">{def.what}</p>
+          <p className="text-[var(--text-secondary)] text-xs leading-relaxed mb-4">{def.what}</p>
 
           {/* Good range */}
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 mb-2">
+          <div className="rounded-xl border border-[var(--accent-green)]/20 bg-[var(--accent-green)]/5 p-3 mb-2">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Good Range</span>
+              <span className="h-2 w-2 rounded-full bg-[var(--accent-green)] shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-green)]">Good Range</span>
             </div>
-            <p className="text-xs text-emerald-200/80 leading-relaxed">{def.good}</p>
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{def.good}</p>
           </div>
 
           {/* Concerning range */}
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 mb-3">
+          <div className="rounded-xl border border-[var(--accent-amber)]/20 bg-[var(--accent-amber)]/5 p-3 mb-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Watch Out For</span>
+              <span className="h-2 w-2 rounded-full bg-[var(--accent-amber)] shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-amber)]">Watch Out For</span>
             </div>
-            <p className="text-xs text-amber-200/80 leading-relaxed">{def.concerning}</p>
+            <p className="text-xs text-[var(--accent-amber)]/80 leading-relaxed">{def.concerning}</p>
           </div>
 
           {/* Tip */}
-          <div className="rounded-xl border border-sky-500/15 bg-sky-500/5 p-3">
+          <div className="rounded-xl border border-[var(--accent-sky)]/15 bg-[var(--accent-sky)]/5 p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-sky-400">💡 Tip</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent-sky)]">💡 Tip</span>
             </div>
-            <p className="text-xs text-sky-200/80 leading-relaxed">{def.tip}</p>
+            <p className="text-xs text-[var(--accent-sky)]/80 leading-relaxed">{def.tip}</p>
           </div>
         </div>
       )}

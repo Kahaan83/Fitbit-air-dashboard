@@ -12,11 +12,26 @@ import {
   ReferenceArea,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
+import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 
+const css = (v: string) => {
+  if (typeof window === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+};
+
 export function VO2MaxChart() {
   const { vo2Max } = useChartData();
+  const theme = useDashboardStore((state) => state.theme);
+
+  const colorTextSecondary = css("--text-secondary") || "#9090A8";
+  const colorBorderSubtle = css("--border-subtle") || "rgba(124,109,250,0.08)";
+  const colorBorderMedium = css("--border-medium") || "rgba(124,109,250,0.25)";
+  const colorBgSurface = css("--bg-surface") || "#111118";
+  const colorTextPrimary = css("--text-primary") || "#E8E8F0";
+  const colorAccentPrimary = css("--accent-primary") || "#7C6DFA";
+  const colorAccentGreen = css("--accent-green") || "#22D3A5";
 
   const formatXAxis = (tickItem: string) => {
     try {
@@ -40,22 +55,22 @@ export function VO2MaxChart() {
   return (
     <div
       data-testid="vo2-chart"
-      className="rounded-xl border border-white/8 bg-slate-900/60 p-5"
+      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5"
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-white">VO2 Max Progression</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">VO2 Max Progression</h3>
             <MetricInfo metricKey="vo2max" />
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Cardiovascular fitness level estimation (ml/kg/min)</p>
+          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Cardiovascular fitness level estimation (ml/kg/min)</p>
         </div>
         <div className="flex gap-3 text-xs font-medium">
-          <span className="flex items-center gap-1 text-emerald-400">
-            <span className="h-2 w-2 rounded-full bg-emerald-500/20 border border-emerald-500/50" /> Excellent (&gt;52)
+          <span className="flex items-center gap-1 text-[var(--accent-green)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--accent-green)]/20 border border-[var(--accent-green)]/50" /> Excellent (&gt;52)
           </span>
-          <span className="flex items-center gap-1 text-indigo-400">
-            <span className="h-2 w-2 rounded-full bg-indigo-500/20 border border-indigo-500/50" /> Good (42–52)
+          <span className="flex items-center gap-1 text-[var(--accent-primary)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--accent-primary)]/20 border border-[var(--accent-primary)]/50" /> Good (42–52)
           </span>
         </div>
       </div>
@@ -64,10 +79,10 @@ export function VO2MaxChart() {
         {hasData ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={vo2Max} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={colorBorderSubtle} vertical={false} />
               <XAxis
                 dataKey="date"
-                stroke="#64748b"
+                stroke={colorTextSecondary}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -75,7 +90,7 @@ export function VO2MaxChart() {
               />
               <YAxis
                 domain={[Math.floor(minVal - 2), Math.ceil(maxVal + 2)]}
-                stroke="#64748b"
+                stroke={colorTextSecondary}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -84,34 +99,38 @@ export function VO2MaxChart() {
               <ReferenceArea
                 y1={42}
                 y2={52}
-                fill="rgba(99, 102, 241, 0.04)"
-                stroke="rgba(99, 102, 241, 0.1)"
+                fill={colorAccentPrimary}
+                fillOpacity={0.04}
+                stroke={colorAccentPrimary}
+                strokeOpacity={0.1}
                 strokeDasharray="3 3"
               />
               {/* Excellent Zone (52+) */}
               <ReferenceArea
                 y1={52}
                 y2={60}
-                fill="rgba(16, 185, 129, 0.04)"
-                stroke="rgba(16, 185, 129, 0.1)"
+                fill={colorAccentGreen}
+                fillOpacity={0.04}
+                stroke={colorAccentGreen}
+                strokeOpacity={0.1}
                 strokeDasharray="3 3"
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#0f172a",
-                  borderColor: "rgba(255,255,255,0.1)",
+                  backgroundColor: colorBgSurface,
+                  borderColor: colorBorderMedium,
                   borderRadius: "6px",
                 }}
-                labelClassName="text-slate-400 text-xs font-mono"
-                itemStyle={{ color: "#fff", fontSize: "12px", fontWeight: "bold" }}
+                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
+                itemStyle={{ color: colorTextPrimary, fontSize: "12px", fontWeight: "bold" }}
                 formatter={(value: any) => [`${value} ml/kg/min`, "VO2 Max"]}
               />
               <Line
                 type="monotone"
                 dataKey="vo2_max"
-                stroke="#a855f7"
+                stroke={colorAccentPrimary}
                 strokeWidth={3}
-                dot={{ r: 3, fill: "#a855f7" }}
+                dot={{ r: 3, fill: colorAccentPrimary }}
                 activeDot={{ r: 5 }}
               />
             </LineChart>

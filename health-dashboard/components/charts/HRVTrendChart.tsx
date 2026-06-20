@@ -12,11 +12,26 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
+import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 
+const css = (v: string) => {
+  if (typeof window === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+};
+
 export function HRVTrendChart() {
   const { hrv } = useChartData();
+  const theme = useDashboardStore((state) => state.theme);
+
+  const colorTextSecondary = css("--text-secondary") || "#9090A8";
+  const colorBorderSubtle = css("--border-subtle") || "rgba(124,109,250,0.08)";
+  const colorBorderMedium = css("--border-medium") || "rgba(124,109,250,0.25)";
+  const colorBgSurface = css("--bg-surface") || "#111118";
+  const colorTextPrimary = css("--text-primary") || "#E8E8F0";
+  const colorAccentGreen = css("--accent-green") || "#22D3A5";
+  const colorAccentAmber = css("--accent-amber") || "#F59E0B";
 
   const hasData = hrv && hrv.length > 0;
 
@@ -28,10 +43,10 @@ export function HRVTrendChart() {
   // Calculate percentage offset where Y = 50 is relative to min/max
   const threshold = 50;
   let offset = 0.5;
-  let stop1Color = "#10b981";
-  let stop2Color = "#10b981";
-  let stop3Color = "#f59e0b";
-  let stop4Color = "#f59e0b";
+  let stop1Color = colorAccentGreen;
+  let stop2Color = colorAccentGreen;
+  let stop3Color = colorAccentAmber;
+  let stop4Color = colorAccentAmber;
 
   if (hasData) {
     const values = hrv.map((d: any) => d.value);
@@ -49,16 +64,16 @@ export function HRVTrendChart() {
 
     if (!hasBelow || offset < 0.05) {
       offset = 0;
-      stop1Color = "#10b981";
-      stop2Color = "#10b981";
-      stop3Color = "#10b981";
-      stop4Color = "#10b981";
+      stop1Color = colorAccentGreen;
+      stop2Color = colorAccentGreen;
+      stop3Color = colorAccentGreen;
+      stop4Color = colorAccentGreen;
     } else if (!hasAbove || offset > 0.95) {
       offset = 1;
-      stop1Color = "#f59e0b";
-      stop2Color = "#f59e0b";
-      stop3Color = "#f59e0b";
-      stop4Color = "#f59e0b";
+      stop1Color = colorAccentAmber;
+      stop2Color = colorAccentAmber;
+      stop3Color = colorAccentAmber;
+      stop4Color = colorAccentAmber;
     }
   }
 
@@ -74,22 +89,22 @@ export function HRVTrendChart() {
   return (
     <div
       data-testid="hrv-chart"
-      className="rounded-xl border border-white/8 bg-slate-900/60 p-5"
+      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5"
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-white">HRV Recovery Trend</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">HRV Recovery Trend</h3>
             <MetricInfo metricKey="hrv" />
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Daily RMSSD (ms) — 30 Day History</p>
+          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Daily RMSSD (ms) — 30 Day History</p>
         </div>
         <div className="flex gap-3 text-xs font-medium">
-          <span className="flex items-center gap-1 text-emerald-400">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" /> Optimal (&gt;50ms)
+          <span className="flex items-center gap-1 text-[var(--accent-green)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--accent-green)]" /> Optimal (&gt;50ms)
           </span>
-          <span className="flex items-center gap-1 text-amber-500">
-            <span className="h-2 w-2 rounded-full bg-amber-500" /> Fatigued (&lt;50ms)
+          <span className="flex items-center gap-1 text-[var(--accent-amber)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--accent-amber)]" /> Fatigued (&lt;50ms)
           </span>
         </div>
       </div>
@@ -106,10 +121,10 @@ export function HRVTrendChart() {
                   <stop offset={1} stopColor={stop4Color} stopOpacity={1} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={colorBorderSubtle} vertical={false} />
               <XAxis
                 dataKey="date"
-                stroke="#64748b"
+                stroke={colorTextSecondary}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -117,28 +132,28 @@ export function HRVTrendChart() {
               />
               <YAxis
                 domain={[minVal - 5, maxVal + 5]}
-                stroke="#64748b"
+                stroke={colorTextSecondary}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#0f172a",
-                  borderColor: "rgba(255,255,255,0.1)",
+                  backgroundColor: colorBgSurface,
+                  borderColor: colorBorderMedium,
                   borderRadius: "6px",
                 }}
-                labelClassName="text-slate-400 text-xs font-mono"
-                itemStyle={{ color: "#fff", fontSize: "12px", fontWeight: "bold" }}
+                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
+                itemStyle={{ color: colorTextPrimary, fontSize: "12px", fontWeight: "bold" }}
                 formatter={(value: any) => [`${value} ms`, "RMSSD"]}
               />
               <ReferenceLine
                 y={50}
-                stroke="rgba(255,255,255,0.15)"
+                stroke={colorBorderMedium}
                 strokeDasharray="4 4"
                 label={{
                   value: "Baseline (50ms)",
-                  fill: "#94a3b8",
+                  fill: colorTextSecondary,
                   fontSize: 10,
                   position: "top",
                 }}

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
-import { Activity, Heart, Moon, Settings as SettingsIcon, Database, RefreshCw } from "lucide-react";
+import { Activity, Heart, Moon, Settings as SettingsIcon, Database, RefreshCw, Palette } from "lucide-react";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -12,7 +12,7 @@ interface HeaderProps {
 
 export function Header({ onOpenSettings }: HeaderProps) {
   const pathname = usePathname();
-  const { dataMode, setDataMode, lastSync, setLiveData, setLastSync, addToast, liveData } = useDashboardStore();
+  const { dataMode, setDataMode, lastSync, setLiveData, setLastSync, addToast, liveData, theme, setTheme } = useDashboardStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
@@ -75,15 +75,15 @@ export function Header({ onOpenSettings }: HeaderProps) {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-slate-950/70 backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-[var(--border-soft)] bg-[var(--bg-base)]/70 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-14 items-stretch justify-between gap-4">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-tr from-violet-600 to-indigo-500 shadow-lg shadow-indigo-500/25">
-              <Activity className="h-5 w-5 text-white" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent-primary)] shadow-lg shadow-[var(--accent-primary)]/20">
+              <Activity className="h-5 w-5 text-[var(--bg-base)]" />
             </div>
-            <span className="font-semibold text-white text-base tracking-tight">
+            <span className="font-semibold text-[var(--text-primary)] text-base tracking-tight">
               Fitbit Air
             </span>
           </div>
@@ -99,8 +99,8 @@ export function Header({ onOpenSettings }: HeaderProps) {
                   href={tab.href}
                   className={`flex items-center gap-1.5 px-3 py-4 text-sm font-medium nav-tab border-b-2 transition-all duration-150 ${
                     isActive
-                      ? "border-white text-white"
-                      : "border-transparent text-slate-400 hover:text-white"
+                      ? "border-[var(--text-primary)] text-[var(--text-primary)]"
+                      : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -111,23 +111,35 @@ export function Header({ onOpenSettings }: HeaderProps) {
 
             <button
               onClick={onOpenSettings}
-              className="flex items-center gap-1.5 px-3 py-4 text-sm font-medium nav-tab border-b-2 border-transparent text-slate-400 hover:text-white transition-all duration-150"
+              className="flex items-center gap-1.5 px-3 py-4 text-sm font-medium nav-tab border-b-2 border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-150"
             >
               <SettingsIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Settings</span>
+              <span className="ml-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--border-medium)] text-[var(--accent-primary)] border border-[var(--border-soft)] leading-none select-none">
+                {theme === "whoop" ? "Whoop" : "Premium"}
+              </span>
             </button>
           </nav>
 
           {/* Status Badge & Sync Info */}
           <div className="flex items-center gap-3">
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setTheme(theme === "premium" ? "whoop" : "premium")}
+              className="flex items-center justify-center rounded-lg p-2 text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)] transition-colors focus:outline-none"
+              title={`Switch to ${theme === "premium" ? "Whoop" : "Premium"} Theme`}
+            >
+              <Palette className="h-4 w-4" />
+            </button>
+
             {/* Sync timestamp */}
             <div className="hidden text-right text-xs md:block">
-              <span className="text-slate-400">Last Sync:</span>{" "}
-              <span className="font-mono text-slate-300">
+              <span className="text-[var(--text-secondary)]">Last Sync:</span>{" "}
+              <span className="font-mono text-[var(--text-primary)]">
                 {lastSync ? new Date(lastSync).toLocaleTimeString() : "—"}
               </span>
               {dataMode === "live" && liveData?.stale && (
-                <div className="text-[10px] text-amber-400 font-medium mt-0.5 animate-pulse">
+                <div className="text-[10px] text-[var(--accent-amber)] font-medium mt-0.5 animate-pulse">
                   Data may be outdated
                 </div>
               )}
@@ -138,16 +150,16 @@ export function Header({ onOpenSettings }: HeaderProps) {
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className="flex items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-slate-200 transition-colors disabled:opacity-50"
+                className="flex items-center justify-center rounded-lg p-2 text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
                 title="Refresh Data"
               >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-emerald-400" : ""}`} />
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin text-[var(--accent-green)]" : ""}`} />
               </button>
             )}
 
             {/* Connection / Toggle Switch */}
             <div className="flex items-center gap-2">
-              <span className={`text-xs font-semibold ${dataMode === "live" ? "text-emerald-400" : "text-slate-400"}`}>
+              <span className={`text-xs font-semibold ${dataMode === "live" ? "text-[var(--accent-green)]" : "text-[var(--text-secondary)]"}`}>
                 {dataMode === "live" ? "Live" : "Demo"}
               </span>
               <button
@@ -156,16 +168,16 @@ export function Header({ onOpenSettings }: HeaderProps) {
                 aria-pressed={dataMode === "live"}
                 className={`relative inline-flex h-6 w-16 items-center rounded-full border transition-all duration-300 ${
                   dataMode === "live"
-                    ? "bg-emerald-500/20 border-emerald-500/40 cursor-pointer shadow-[0_0_12px_-3px_rgba(16,185,129,0.25)]"
-                    : "bg-slate-800 border-slate-700 cursor-pointer"
-                } disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 focus-visible:outline-none`}
+                    ? "bg-[var(--accent-green)]/20 border-[var(--accent-green)]/40 cursor-pointer shadow-[0_0_12px_-3px_rgba(34,211,165,0.25)]"
+                    : "bg-[var(--bg-surface)] border-[var(--border-medium)] cursor-pointer"
+                } disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-base)] focus-visible:outline-none`}
                 title="Click to toggle between Mock and Live Google Health API data"
               >
                 <span
                   className={`absolute h-4 w-4 rounded-full transition-all duration-300 ${
                     dataMode === "live"
-                      ? "right-1 bg-emerald-500"
-                      : "left-1 bg-slate-500"
+                      ? "right-1 bg-[var(--accent-green)]"
+                      : "left-1 bg-[var(--text-secondary)]"
                   } ${isToggling ? "animate-pulse" : ""}`}
                 />
               </button>
