@@ -13,12 +13,11 @@ test.describe("Backend Offline Error States", () => {
     await page.waitForLoadState("networkidle");
 
     // Dashboard should load in Sample Data Mode automatically even if backend is offline
-    await expect(page.locator("text=Demo")).toBeVisible();
-    await expect(page.locator('[data-testid="hrv-chart"]')).toBeVisible();
+    await expect(page.locator('h2:has-text("FITBIT AIR")')).toBeVisible();
+    await expect(page.locator('[data-testid="whoop-ring-strain"]')).toBeVisible();
 
-    // Click "Settings" in the header to open settings panel (on desktop/mobile)
-    // There's a button with text "Settings" in the main navigation
-    const settingsBtn = page.locator('button:has-text("Settings")').first();
+    // Click user profile button in the header to open settings panel
+    const settingsBtn = page.locator('[data-testid="user-profile-button"]');
     await expect(settingsBtn).toBeVisible();
     await settingsBtn.click();
 

@@ -80,7 +80,6 @@ export function AcuteStressHeatmap() {
     return getPastDates(30);
   }, [mounted, dataMode, acuteStress]);
 
-  // Group events by YYYY-MM-DD
   const eventsByDate = React.useMemo(() => {
     return dates.reduce((acc: Record<string, AcuteStressEvent[]>, date: string) => {
       acc[date] = acuteStress.filter((e: AcuteStressEvent) => e.date === date);
@@ -88,71 +87,62 @@ export function AcuteStressHeatmap() {
     }, {} as Record<string, AcuteStressEvent[]>);
   }, [dates, acuteStress]);
 
-  // Heatmap styling colors based on count
   const getCellColor = (count: number) => {
-    if (count === 0) return "bg-[var(--border-subtle)] hover:bg-[var(--border-soft)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]";
-    if (count === 1) return "bg-[var(--accent-amber)]/20 text-[var(--accent-amber)] hover:bg-[var(--accent-amber)]/30 border border-[var(--accent-amber)]/20";
-    if (count === 2) return "bg-[var(--accent-amber)]/45 text-[var(--accent-amber)] hover:bg-[var(--accent-amber)]/55 border border-[var(--accent-amber)]/30";
-    return "bg-[var(--accent-red)]/70 text-[var(--text-primary)] hover:bg-[var(--accent-red)]/80 border border-[var(--accent-red)]/40 animate-pulse";
+    if (count === 0) return "bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] border border-[rgba(255,255,255,0.06)] text-[#444444]";
+    if (count === 1) return "bg-[#FFB800]/20 text-[#FFB800] hover:bg-[#FFB800]/30 border border-[#FFB800]/20";
+    if (count === 2) return "bg-[#FFB800]/45 text-[#FFB800] hover:bg-[#FFB800]/55 border border-[#FFB800]/30";
+    return "bg-[#FF3B5C]/70 text-[#FFFFFF] hover:bg-[#FF3B5C]/80 border border-[#FF3B5C]/40 animate-pulse";
   };
 
   const activeEvents = activeDate ? eventsByDate[activeDate] || [] : [];
 
   if (!mounted) {
     return (
-      <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 relative min-w-0 h-64 animate-pulse" />
+      <div className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] relative min-w-0 h-[280px] animate-pulse" />
     );
   }
 
   return (
     <div
       data-testid="stress-heatmap"
-      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 relative min-w-0"
+      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] relative min-w-0"
     >
-      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Acute Stress Heatmap</h3>
-            <MetricInfo metricKey="acute_stress" />
+      {/* Header Row */}
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+          ACUTE STRESS HEATMAP
+        </span>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-wrap gap-2 text-[9px] font-mono text-[#888888] font-medium">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)]" /> 0
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded bg-[#FFB800]/20 border border-[#FFB800]/20" /> 1
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded bg-[#FFB800]/45 border border-[#FFB800]/30" /> 2
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded bg-[#FF3B5C]/70 border border-[#FF3B5C]/40" /> 3+
+            </span>
           </div>
-          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-            Cross-references heart rate spikes against zero-movement intervals
-          </p>
-        </div>
-        
-        {/* Heatmap Legend */}
-        <div className="flex flex-wrap gap-3 text-[10px] font-mono text-[var(--text-secondary)] font-medium">
-          <span className="flex items-center gap-1">
-            <span className="h-3 w-3 rounded bg-[var(--border-subtle)] border border-[var(--border-soft)]" /> 0 Events
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-3 w-3 rounded bg-[var(--accent-amber)]/30 border border-[var(--accent-amber)]/20" /> 1 Event
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-3 w-3 rounded bg-[var(--accent-amber)]/50 border border-[var(--accent-amber)]/30" /> 2 Events
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-3 w-3 rounded bg-[var(--accent-red)]/70 border border-[var(--accent-red)]/40" /> 3+ Events
-          </span>
+          <MetricInfo metricKey="acute_stress" />
         </div>
       </div>
 
-      {/* Grid Layout: 30 days mapped to a 7-column calendar-style view */}
       {acuteStress && acuteStress.length > 0 ? (
         <div className="grid grid-cols-7 gap-2 max-w-lg mx-auto md:mx-0">
-          {/* Render Day headers for columns */}
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="text-center text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] py-1">
+            <div key={day} className="text-center text-[10px] font-bold uppercase tracking-wider text-[#888888] py-1">
               {day}
             </div>
           ))}
 
-          {/* Padding for grid alignment: align first date to correct weekday index */}
           {dates.length > 0 && Array.from({ length: getDayOfWeek(dates[0]) }).map((_, i) => (
             <div key={`pad-${i}`} className="h-11 rounded-lg bg-transparent" />
           ))}
 
-          {/* Heatmap cells */}
           {dates.map((date) => {
             const dayEvents = eventsByDate[date] || [];
             const count = dayEvents.length;
@@ -165,7 +155,7 @@ export function AcuteStressHeatmap() {
                   count
                 )}`}
               >
-                <span className="text-[10px] font-bold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
+                <span className="text-[10px] font-bold text-[#888888] group-hover:text-[#FFFFFF] transition-colors">
                   {labelDate}
                 </span>
                 {count > 0 && (
@@ -183,22 +173,21 @@ export function AcuteStressHeatmap() {
         </div>
       )}
 
-      {/* Detail Popover Panel on cell selection */}
       {activeDate && (
-        <div className="absolute inset-0 bg-[var(--bg-surface)]/95 rounded-2xl p-6 z-20 flex flex-col transition-all duration-300">
-          <div className="flex items-center justify-between border-b border-[var(--border-medium)] pb-3 mb-4">
+        <div className="absolute inset-0 bg-[#0A0A0A]/95 rounded-2xl p-6 z-20 flex flex-col transition-all duration-300">
+          <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.08)] pb-3 mb-4">
             <div>
-              <h4 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-                <Flame className="h-4 w-4 text-[var(--accent-amber)]" />
+              <h4 className="text-sm font-bold text-[#FFFFFF] flex items-center gap-1.5">
+                <Flame className="h-4 w-4 text-[#FFB800]" />
                 Stress Log for {activeDate}
               </h4>
-              <p className="text-[10px] text-[var(--text-secondary)]">
+              <p className="text-[10px] text-[#888888]">
                 {getDayOfWeekName(activeDate)} day view
               </p>
             </div>
             <button
               onClick={() => setActiveDate(null)}
-              className="rounded-lg p-1 text-[var(--text-secondary)] hover:bg-[var(--border-soft)] hover:text-[var(--text-primary)] transition-colors"
+              className="rounded-lg p-1 text-[#888888] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#FFFFFF] transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -206,37 +195,37 @@ export function AcuteStressHeatmap() {
 
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
             {activeEvents.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-[var(--text-secondary)] text-xs py-8">
-                <AlertCircle className="h-8 w-8 text-[var(--text-tertiary)] mb-2" />
+              <div className="flex h-full flex-col items-center justify-center text-[#888888] text-xs py-8">
+                <AlertCircle className="h-8 w-8 text-[#444444] mb-2" />
                 No stress events detected. HRV and heart rate values were within optimal baseline ranges.
               </div>
             ) : (
               activeEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/40 p-3 flex items-center justify-between gap-4"
+                  className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#1C1C1C]/40 p-3 flex items-center justify-between gap-4"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span
                         className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
                           event.severity === "high"
-                            ? "bg-[var(--accent-red)]/20 text-[var(--accent-red)] border border-[var(--accent-red)]/30"
+                            ? "bg-[#FF3B5C]/20 text-[#FF3B5C] border border-[#FF3B5C]/30"
                             : event.severity === "medium"
-                            ? "bg-[var(--accent-amber)]/25 text-[var(--accent-amber)] border border-[var(--accent-amber)]/30"
-                            : "bg-[var(--accent-amber)]/15 text-[var(--accent-amber)] border border-[var(--accent-amber)]/20"
+                            ? "bg-[#FFB800]/25 text-[#FFB800] border border-[#FFB800]/30"
+                            : "bg-[#FFB800]/15 text-[#FFB800] border border-[#FFB800]/20"
                         }`}
                       >
                         {event.severity} severity
                       </span>
                     </div>
-                    <p className="text-xs text-[var(--text-secondary)] font-medium">
+                    <p className="text-xs text-[#888888] font-medium">
                       {new Date(event.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(event.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs text-[var(--text-secondary)]">Peak HR</span>
-                    <p className="text-sm font-bold font-mono text-[var(--text-primary)]">{event.hr_peak} bpm</p>
+                    <span className="text-xs text-[#888888]">Peak HR</span>
+                    <p className="text-sm font-bold font-mono text-[#FFFFFF]">{event.hr_peak} bpm</p>
                   </div>
                 </div>
               ))
@@ -247,4 +236,5 @@ export function AcuteStressHeatmap() {
     </div>
   );
 }
+
 export default AcuteStressHeatmap;

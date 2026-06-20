@@ -1,14 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Header from "./Header";
 import SettingsModal from "./SettingsModal";
 import ToastContainer from "./ToastContainer";
 import { useDashboardStore } from "@/lib/store";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { dataMode, setLiveData, setLastSync, theme } = useDashboardStore();
+  const { dataMode, setLiveData, setLastSync, theme, isSettingsOpen, setIsSettingsOpen } = useDashboardStore();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -39,10 +37,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-base)] text-[var(--text-primary)] bg-radial-glow font-sans">
       <ToastContainer />
-      <Header onOpenSettings={() => setIsSettingsOpen(true)} />
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 md:py-8">
-        {children}
-      </main>
+      {children}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );

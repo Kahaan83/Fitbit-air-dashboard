@@ -13,26 +13,20 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
-import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
-
-const css = (v: string) => {
-  if (typeof window === "undefined") return "";
-  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-};
+import { cssVar } from "@/lib/cssVar";
 
 export function SkinTempChart() {
   const { skinTemp } = useChartData();
-  const theme = useDashboardStore((state) => state.theme);
 
-  const colorTextSecondary = css("--text-secondary") || "#9090A8";
-  const colorBorderSubtle = css("--border-subtle") || "rgba(124,109,250,0.08)";
-  const colorBorderMedium = css("--border-medium") || "rgba(124,109,250,0.25)";
-  const colorBgSurface = css("--bg-surface") || "#111118";
-  const colorTextPrimary = css("--text-primary") || "#E8E8F0";
-  const colorAccentAmber = css("--accent-amber") || "#F59E0B";
-  const colorAccentSky = css("--accent-sky") || "#38BDF8";
+  const colorTextSecondary = cssVar("--text-secondary") || "#888888";
+  const colorBorderSubtle = "rgba(255,255,255,0.04)";
+  const colorBorderMedium = "rgba(255,255,255,0.08)";
+  const colorBgSurface = "#1C1C1C";
+  const colorTextPrimary = "#FFFFFF";
+  const colorAccentRed = "#FF3B5C";
+  const colorAccentBlue = "#3B7FD4";
 
   const formatXAxis = (tickItem: string) => {
     try {
@@ -56,27 +50,27 @@ export function SkinTempChart() {
   return (
     <div
       data-testid="skin-temp-chart"
-      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 min-w-0"
+      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] min-w-0"
     >
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Sleep Skin Temperature Deviation</h3>
-            <MetricInfo metricKey="sleep_temp_deviation" />
+      {/* Header Row */}
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+          SKIN TEMPERATURE
+        </span>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-3 text-[10px] font-semibold uppercase tracking-wider">
+            <span className="flex items-center gap-1 text-[#FF3B5C]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FF3B5C]" /> Elevated
+            </span>
+            <span className="flex items-center gap-1 text-[#3B7FD4]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#3B7FD4]" /> Suppressed
+            </span>
           </div>
-          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Nightly variation relative to 7-day personal baseline (°C)</p>
-        </div>
-        <div className="flex gap-3 text-xs font-medium">
-          <span className="flex items-center gap-1 text-[var(--accent-amber)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--accent-amber)]" /> Elevated (&gt;0°C)
-          </span>
-          <span className="flex items-center gap-1 text-[var(--accent-sky)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--accent-sky)]" /> Suppressed (&lt;0°C)
-          </span>
+          <MetricInfo metricKey="sleep_temp_deviation" />
         </div>
       </div>
 
-      <div className="h-64 w-full" role="img" aria-label="Sleep Skin Temperature Deviation chart">
+      <div className="h-[280px] w-full" role="img" aria-label="Sleep Skin Temperature Deviation chart">
         {hasData ? (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={skinTemp} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
@@ -84,7 +78,7 @@ export function SkinTempChart() {
               <XAxis
                 dataKey="date"
                 stroke={colorTextSecondary}
-                fontSize={11}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={formatXAxis}
@@ -92,7 +86,7 @@ export function SkinTempChart() {
               <YAxis
                 domain={[Math.floor(minVal * 1.5 * 10) / 10, Math.ceil(maxVal * 1.5 * 10) / 10]}
                 stroke={colorTextSecondary}
-                fontSize={11}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
               />
@@ -100,16 +94,16 @@ export function SkinTempChart() {
                 contentStyle={{
                   backgroundColor: colorBgSurface,
                   borderColor: colorBorderMedium,
-                  borderRadius: "6px",
+                  borderRadius: "8px",
                 }}
-                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
+                labelClassName="text-[#888888] text-xs font-mono"
                 itemStyle={{ color: colorTextPrimary, fontSize: "12px", fontWeight: "bold" }}
                 formatter={(value: any) => [`${value > 0 ? "+" : ""}${value} °C`, "Deviation"]}
               />
               <ReferenceLine y={0} stroke={colorBorderMedium} />
               <Bar dataKey="value">
                 {skinTemp.map((entry: any, index: number) => {
-                  const color = entry.value >= 0 ? colorAccentAmber : colorAccentSky;
+                  const color = entry.value >= 0 ? colorAccentRed : colorAccentBlue;
                   return <Cell key={`cell-${index}`} fill={color} />;
                 })}
               </Bar>
@@ -122,4 +116,5 @@ export function SkinTempChart() {
     </div>
   );
 }
+
 export default SkinTempChart;

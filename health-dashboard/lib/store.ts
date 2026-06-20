@@ -34,6 +34,8 @@ interface DashboardState {
   setSyncStartDate: (date: string) => void;
   syncEndDate: string;
   setSyncEndDate: (date: string) => void;
+  isSettingsOpen: boolean;
+  setIsSettingsOpen: (open: boolean) => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -88,4 +90,6 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setSyncStartDate: (date) => set({ syncStartDate: date }),
   syncEndDate: "",
   setSyncEndDate: (date) => set({ syncEndDate: date }),
+  isSettingsOpen: false,
+  setIsSettingsOpen: (open) => set({ isSettingsOpen: open }),
 }));

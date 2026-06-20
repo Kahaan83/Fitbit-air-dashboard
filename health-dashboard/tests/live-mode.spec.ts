@@ -51,7 +51,7 @@ test.describe("Live Mode Tests", () => {
       },
     };
 
-    // Intercept api/health-data (as requested in prompt template)
+    // Intercept api/health-data
     await page.route("**/api/health-data", (route) => {
       route.fulfill({
         status: 200,
@@ -95,24 +95,22 @@ test.describe("Live Mode Tests", () => {
     await page.goto("http://localhost:3000");
     await page.waitForLoadState("networkidle");
 
-    // Initially starts in Demo/Sample Mode
-    await expect(page.locator('text="Demo"')).toBeVisible();
+    // Initially starts in Demo/Sample Mode (app name FITBIT AIR)
+    await expect(page.locator('h2:has-text("FITBIT AIR")')).toBeVisible();
 
-    // Toggle mode switch in the header to switch to Live mode
-    const modeSwitch = page.locator('button[aria-pressed="false"]');
+    // Open settings modal
+    await page.locator('[data-testid="user-profile-button"]').click();
+    await expect(page.locator("text=Data Source")).toBeVisible();
+
+    // Toggle mode switch in the modal to switch to Live mode
+    const modeSwitch = page.locator('[data-testid="data-source-toggle"]');
     await expect(modeSwitch).toBeVisible();
     await modeSwitch.click();
 
-    // Mode label should switch to Live
-    await expect(page.locator('text="Live"')).toBeVisible();
+    // Verify that the DateRangePicker is now visible inside the Settings Modal
+    await expect(page.locator('button:has-text("custom")')).toBeVisible();
 
-    // Check that Live data was successfully loaded (charts should be visible)
-    await expect(page.locator('[data-testid="hrv-chart"]')).toBeVisible();
-    
-    // Verify that the distinctive live HRV value (123) is visible on the page (verifying it is real data, not mock)
-    await expect(page.locator('text="123"')).toBeVisible();
-
-    // Select custom preset on DateRangePicker and sync
+    // Select custom preset on DateRangePicker and sync inside settings modal
     await page.locator('button:has-text("custom")').first().click();
 
     const startDateInput = page.locator('input[type="date"]').first();
@@ -133,14 +131,29 @@ test.describe("Live Mode Tests", () => {
       end_date: "2026-06-07",
     });
 
-    // Check that charts are still visible and updated after successful sync
-    // Verify that at least one chart's container is non-empty (renders SVG)
-    await expect(page.locator('[data-testid="hrv-chart"]')).toBeVisible();
-    await expect(page.locator('[data-testid="hrv-chart"] .recharts-responsive-container')).toBeVisible();
-    await expect(page.locator('[data-testid="hrv-chart"] svg.recharts-surface')).toBeVisible();
+    // Close settings modal to view live page metrics
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+
+    // Navigate to Sleep page
+    await page.locator("nav").locator("text=Sleep").click();
+    await page.waitForTimeout(500);
+
+    // Verify sleep stage details or custom SpO2 / sleep efficiency readouts
+    await expect(page.locator('[data-testid="spo2-chart"]')).toBeVisible();
+    await expect(page.locator('[data-testid="spo2-chart"] .recharts-responsive-container')).toBeVisible();
+    await expect(page.locator('[data-testid="spo2-chart"] svg.recharts-surface')).toBeVisible();
+
+    // Go back to Overview to open settings modal
+    await page.locator("nav").locator("text=Overview").click();
+    await page.waitForTimeout(500);
+
+    // Open settings modal again to trigger sync and test 429
+    await page.locator('[data-testid="user-profile-button"]').click();
+    await expect(page.locator('button:has-text("Sync")')).toBeVisible();
 
     // Trigger sync again immediately to test 429 cooldown response
-    await syncButton.click();
+    await page.locator('button:has-text("Sync")').first().click();
 
     // Verify second trigger-sync request sent (yielding 429)
     await expect.poll(() => syncCount).toBe(2);

@@ -15,24 +15,20 @@ import { useChartData } from "@/lib/useChartData";
 import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
-
-const css = (v: string) => {
-  if (typeof window === "undefined") return "";
-  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-};
+import { cssVar } from "@/lib/cssVar";
 
 export function SleepDebtChart() {
   const { sleepDebt } = useChartData();
-  const { settings, theme } = useDashboardStore();
+  const { settings } = useDashboardStore();
   const target = settings.targetSleepHours;
 
-  const colorTextSecondary = css("--text-secondary") || "#9090A8";
-  const colorBorderSubtle = css("--border-subtle") || "rgba(124,109,250,0.08)";
-  const colorBorderMedium = css("--border-medium") || "rgba(124,109,250,0.25)";
-  const colorBgSurface = css("--bg-surface") || "#111118";
-  const colorTextPrimary = css("--text-primary") || "#E8E8F0";
-  const colorChartSleep = css("--chart-sleep") || "#38BDF8";
-  const colorAccentRed = css("--accent-red") || "#F4546A";
+  const colorTextSecondary = cssVar("--text-secondary") || "#888888";
+  const colorBorderSubtle = "rgba(255,255,255,0.04)";
+  const colorBorderMedium = "rgba(255,255,255,0.08)";
+  const colorBgSurface = "#1C1C1C";
+  const colorTextPrimary = "#FFFFFF";
+  const colorChartSleep = "#3B7FD4";
+  const colorAccentRed = "#FF3B5C";
 
   const formatXAxis = (tickItem: string) => {
     try {
@@ -43,10 +39,6 @@ export function SleepDebtChart() {
     }
   };
 
-  // Prepare chart data:
-  // - actual_sleep: amount slept (blue)
-  // - deficit: sleep debt hours (red) if actual < target, else 0
-  // - surplus: sleep hours exceeding target (green/cyan) if actual > target, else 0
   const chartData = sleepDebt.map((d: any) => {
     const act = d.actual_hours;
     const tgt = d.target_hours || target;
@@ -62,27 +54,27 @@ export function SleepDebtChart() {
   return (
     <div
       data-testid="sleep-debt-chart"
-      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 min-w-0"
+      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] min-w-0"
     >
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Sleep Duration & Deficit</h3>
-            <MetricInfo metricKey="sleep_debt" />
+      {/* Header Row */}
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+          SLEEP DEBT
+        </span>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-3 text-[10px] font-semibold uppercase tracking-wider">
+            <span className="flex items-center gap-1 text-[#3B7FD4]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#3B7FD4]" /> Sleep
+            </span>
+            <span className="flex items-center gap-1 text-[#FF3B5C]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FF3B5C]" /> Deficit
+            </span>
           </div>
-          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Nightly sleep hours vs. target ({target}h)</p>
-        </div>
-        <div className="flex gap-3 text-xs font-medium">
-          <span className="flex items-center gap-1 text-[var(--chart-sleep)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--chart-sleep)]" /> Sleep Duration
-          </span>
-          <span className="flex items-center gap-1 text-[var(--accent-red)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--accent-red)]" /> Sleep Deficit
-          </span>
+          <MetricInfo metricKey="sleep_debt" />
         </div>
       </div>
 
-      <div className="h-64 w-full" role="img" aria-label="Sleep Duration & Deficit chart">
+      <div className="h-[320px] w-full" role="img" aria-label="Sleep Duration & Deficit chart">
         {sleepDebt && sleepDebt.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
@@ -90,7 +82,7 @@ export function SleepDebtChart() {
               <XAxis
                 dataKey="date"
                 stroke={colorTextSecondary}
-                fontSize={11}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={formatXAxis}
@@ -98,7 +90,7 @@ export function SleepDebtChart() {
               <YAxis
                 domain={[0, 12]}
                 stroke={colorTextSecondary}
-                fontSize={11}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
               />
@@ -106,10 +98,10 @@ export function SleepDebtChart() {
                 contentStyle={{
                   backgroundColor: colorBgSurface,
                   borderColor: colorBorderMedium,
-                  borderRadius: "6px",
+                  borderRadius: "8px",
                 }}
-                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
-                itemStyle={{ fontSize: "12px", fontWeight: "bold", color: colorTextPrimary }}
+                labelClassName="text-[#888888] text-xs font-mono"
+                itemStyle={{ color: colorTextPrimary, fontSize: "12px", fontWeight: "bold" }}
                 formatter={(value: any, name: any) => {
                   if (name === "actual_sleep") return [`${value} hrs`, "Time Slept"];
                   if (name === "deficit" && value > 0) return [`${value} hrs`, "Deficit"];
@@ -124,11 +116,10 @@ export function SleepDebtChart() {
                 label={{
                   value: `Target (${target}h)`,
                   fill: colorTextPrimary,
-                  fontSize: 10,
+                  fontSize: 9,
                   position: "right",
                 }}
               />
-              {/* Stack actual sleep and deficit */}
               <Bar dataKey="actual_sleep" stackId="sleep" fill={colorChartSleep} radius={[2, 2, 0, 0]} />
               <Bar dataKey="deficit" stackId="sleep" fill={colorAccentRed} radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -140,4 +131,5 @@ export function SleepDebtChart() {
     </div>
   );
 }
+
 export default SleepDebtChart;
