@@ -2,7 +2,16 @@
 
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useDashboardStore } from "@/lib/store";
-import * as mock from "@/lib/mockData";
+import {
+  mockHRV,
+  mockSpO2Nocturnal,
+  mockSleepData,
+  mockHeartRateZones,
+  mockStressEvents,
+  mockStepsData,
+  mockSkinTemp,
+  mockSleepDebt,
+} from "@/lib/mockData";
 import { MetricInfo } from "@/components/MetricInfo";
 import DataStreamsStrip from "@/components/DataStreamsStrip";
 import JSZip from "jszip";
@@ -351,19 +360,61 @@ export default function RawMetricsPage() {
   };
 
   // ── Derive numeric values from live or mock data ─────────────────────────────
-  const heartRateArr: any[] = isLive ? (liveData.heart_rate || []) : [];
-  const hrvArr: any[] = isLive ? (liveData.hrv || []) : [];
-  const spo2Arr: any[] = isLive ? (liveData.spo2 || liveData.daily_spo2 || []) : [];
-  const dailySpo2Arr: any[] = isLive ? (liveData.daily_spo2 || []) : [];
-  const restingHRArr: any[] = isLive ? (liveData.daily_resting_hr || []) : [];
-  const sleepTempArr: any[] = isLive ? (liveData.sleep_temp || []) : [];
-  const stepsArr: any[] = isLive ? (liveData.steps || []) : [];
-  const sleepArr: any[] = isLive ? (liveData.sleep || []) : [];
+  const avgZone1HR = useMemo(() => {
+    const zone1 = mockHeartRateZones.filter((d) => d.zone === "Zone 1");
+    return zone1.length
+      ? Math.round(zone1.reduce((sum, d) => sum + d.value, 0) / zone1.length)
+      : 58;
+  }, []);
+
+  const mockRestingHRArr = useMemo(() => {
+    return mockHRV.map((d, idx) => {
+      const variation = Math.round(Math.sin(idx * 0.7) * 2);
+      const value = idx === mockHRV.length - 1 ? avgZone1HR : avgZone1HR + variation;
+      return {
+        timestamp: d.date,
+        value,
+        data_type: "resting_hr",
+      };
+    });
+  }, [avgZone1HR]);
+
+  const mockSpo2Arr = useMemo(() => {
+    return mockHRV.map(d => d.date).flatMap((date) => {
+      const readings = mockSpO2Nocturnal[date] || [];
+      return readings.map((r) => ({
+        timestamp: `${date}T${r.time === "Daily Avg" ? "12:00" : r.time}:00Z`,
+        value: r.value,
+        data_type: "spo2",
+      }));
+    });
+  }, []);
+
+  const mockDailySpo2Arr = useMemo(() => {
+    return mockHRV.map(d => d.date).map((date) => {
+      const readings = mockSpO2Nocturnal[date] || [];
+      const avg = readings.reduce((sum, r) => sum + r.value, 0) / (readings.length || 1);
+      return {
+        timestamp: date,
+        value: Math.round(avg * 10) / 10,
+        data_type: "daily_spo2",
+      };
+    });
+  }, []);
+
+  const heartRateArr: any[] = isLive ? (liveData.heart_rate || []) : mockHeartRateZones;
+  const hrvArr: any[] = isLive ? (liveData.hrv || []) : mockHRV.map((d) => ({ timestamp: d.date, value: d.value, data_type: "hrv" }));
+  const spo2Arr: any[] = isLive ? (liveData.spo2 || liveData.daily_spo2 || []) : mockSpo2Arr;
+  const dailySpo2Arr: any[] = isLive ? (liveData.daily_spo2 || []) : mockDailySpo2Arr;
+  const restingHRArr: any[] = isLive ? (liveData.daily_resting_hr || []) : mockRestingHRArr;
+  const sleepTempArr: any[] = isLive ? (liveData.sleep_temp || []) : mockSkinTemp.map((d) => ({ timestamp: d.date, value: d.value, data_type: "sleep_temp" }));
+  const stepsArr: any[] = isLive ? (liveData.steps || []) : mockStepsData;
+  const sleepArr: any[] = isLive ? (liveData.sleep || []) : mockSleepData;
 
   // Mock fallback scalars
-  const mockLatestHRV = mock.mockHRV[mock.mockHRV.length - 1]?.value ?? 51;
-  const mockLatestTemp = mock.mockSkinTemp[mock.mockSkinTemp.length - 1]?.value ?? 0.12;
-  const mockLatestSleep = mock.mockSleepDebt[mock.mockSleepDebt.length - 1]?.actual_hours ?? 7.4;
+  const mockLatestHRV = mockHRV[mockHRV.length - 1]?.value ?? 51;
+  const mockLatestTemp = mockSkinTemp[mockSkinTemp.length - 1]?.value ?? 0.12;
+  const mockLatestSleep = mockSleepDebt[mockSleepDebt.length - 1]?.actual_hours ?? 7.4;
 
   const latestHR = heartRateArr.length
     ? Math.round(heartRateArr[heartRateArr.length - 1].value)
@@ -379,7 +430,7 @@ export default function RawMetricsPage() {
 
   const latestRestingHR = restingHRArr.length
     ? Math.round(restingHRArr[restingHRArr.length - 1].value)
-    : 58;
+    : avgZone1HR;
 
   const rawTemp = sleepTempArr.length
     ? sleepTempArr[sleepTempArr.length - 1].value
@@ -390,11 +441,11 @@ export default function RawMetricsPage() {
 
   const todaySteps = useMemo(() => {
     if (!stepsArr.length) return 6820;
-    const today = new Date().toISOString().slice(0, 10);
+    const targetDate = isLive ? new Date().toISOString().slice(0, 10) : "2025-06-15";
     return stepsArr
-      .filter((s) => (s.timestamp || "").startsWith(today))
+      .filter((s) => (s.timestamp || "").startsWith(targetDate))
       .reduce((acc, s) => acc + (s.value || 0), 0);
-  }, [stepsArr]);
+  }, [stepsArr, isLive]);
 
   const latestSleepHours = sleepArr.length
     ? (sleepArr[sleepArr.length - 1].value?.total_sleep_minutes ?? 0) / 60
@@ -402,13 +453,9 @@ export default function RawMetricsPage() {
 
   // Sparkline data
   const hrSparkPoints = heartRateArr.slice(-40).map((d) => d.value);
-  const hrvSparkPoints = isLive
-    ? hrvArr.slice(-30).map((d) => d.value)
-    : mock.mockHRV.slice(-30).map((d) => d.value);
+  const hrvSparkPoints = hrvArr.slice(-30).map((d) => d.value);
   const spo2SparkPoints = spo2Arr.slice(-30).map((d) => d.value);
-  const tempSparkPoints = isLive
-    ? sleepTempArr.slice(-20).map((d) => d.value)
-    : mock.mockSkinTemp.slice(-20).map((d) => d.value);
+  const tempSparkPoints = sleepTempArr.slice(-20).map((d) => d.value);
 
   // Latest times
   const fmt = (ts?: string) => {
@@ -591,14 +638,16 @@ export default function RawMetricsPage() {
                 color: "indigo" as const,
                 metricKey: "sleep_duration",
               },
-              ...(isLive && sleepArr.length
+              ...((isLive && sleepArr.length) || (!isLive && mockSleepData.length > 0)
                 ? (() => {
-                    const s = sleepArr[sleepArr.length - 1].value;
+                    const s = isLive 
+                      ? sleepArr[sleepArr.length - 1].value 
+                      : mockSleepData[mockSleepData.length - 1].value;
                     const stages = s?.stages || {};
                     return [
-                      { label: "REM", value: `${Math.round((stages.rem || 0) / 60 * 10) / 10}h`, sub: "REM sleep", color: "violet" as const, metricKey: "rem_sleep" },
-                      { label: "Deep", value: `${Math.round((stages.deep || 0) / 60 * 10) / 10}h`, sub: "Deep sleep", color: "sky" as const, metricKey: "deep_sleep" },
-                      { label: "Awake", value: `${Math.round((stages.awake || 0))}m`, sub: "Awake time", color: "amber" as const, metricKey: "awake_sleep" },
+                      { label: "REM", value: `${Math.round((stages.rem || 0) / 60 * 10) / 10}h`, sub: isLive ? "REM sleep" : "Sample", color: "violet" as const, metricKey: "rem_sleep" },
+                      { label: "Deep", value: `${Math.round((stages.deep || 0) / 60 * 10) / 10}h`, sub: isLive ? "Deep sleep" : "Sample", color: "sky" as const, metricKey: "deep_sleep" },
+                      { label: "Awake", value: `${Math.round((stages.awake || 0))}m`, sub: isLive ? "Awake time" : "Sample", color: "amber" as const, metricKey: "awake_sleep" },
                     ];
                   })()
                 : [

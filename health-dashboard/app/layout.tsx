@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
-import ThemeInitializer from "@/components/ThemeInitializer";
 import Script from "next/script";
 
 const geistSans = Geist({
@@ -46,7 +45,6 @@ export default function RootLayout({
             `,
           }}
         />
-        <ThemeInitializer />
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>

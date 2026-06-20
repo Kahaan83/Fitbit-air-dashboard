@@ -28,8 +28,8 @@ from models import HealthDataResponse
 from auth import get_credentials, get_token_info
 from derived_metrics import (
     calculate_ans_balance,
-    calculate_sleep_debt,
-    calculate_vo2_max,
+    calculate_sleep_debt_series,
+    calculate_vo2_max_series,
     identify_acute_stress,
 )
 from extractor import (
@@ -67,6 +67,8 @@ USER_TARGET_SLEEP_HOURS = float(os.getenv("USER_TARGET_SLEEP_HOURS", "8"))
 _cache: dict[str, Any] = {
     "payload": None,        # The last full health-data response
     "synced_at": None,      # ISO 8601 timestamp of last successful sync
+    "auto_synced_at": None, # timestamp of last automatic background sync
+    "user_synced_at": None, # timestamp of last user-triggered manual sync
 }
 
 # ─── Empty response shell ─────────────────────────────────────────────────────
@@ -138,6 +140,13 @@ class SettingsRequest(BaseModel):
     target_sleep_hours: float
 
 
+class BaselinesRequest(BaseModel):
+    age: int
+    max_hr: float
+    resting_hr: float
+    target_sleep_hours: float
+
+
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
 @app.post("/api/settings", summary="Update GCP credentials and user baselines")
@@ -161,7 +170,7 @@ async def update_settings(body: SettingsRequest) -> JSONResponse:
         
         # Load from request body, environment variable, or fallback to existing
         body_client_secret = body.client_secret if body.client_secret and body.client_secret.strip() else None
-        env_client_secret = os.getenv("FITBIT_CLIENT_SECRET") or os.getenv("GCP_CLIENT_SECRET")
+        env_client_secret = os.getenv("GCP_CLIENT_SECRET")
         final_client_secret = body_client_secret or env_client_secret or existing_client_secret
 
         creds_data = {
@@ -230,6 +239,46 @@ async def update_settings(body: SettingsRequest) -> JSONResponse:
         logger.warning(f"Failed to inspect/delete old token.json: {e}")
 
     return JSONResponse(content={"status": "success", "message": "Settings updated successfully."})
+
+
+@app.patch("/api/settings/baselines", summary="Update user physiological baselines")
+async def update_baselines(body: BaselinesRequest) -> JSONResponse:
+    # Update .env file / environment variables
+    try:
+        env_lines = []
+        if os.path.exists(".env"):
+            with open(".env", "r") as f:
+                env_lines = f.readlines()
+        
+        def update_env_var(lines, key, val):
+            found = False
+            for i, line in enumerate(lines):
+                if line.strip().startswith(f"{key}="):
+                    lines[i] = f"{key}={val}\n"
+                    found = True
+                    break
+            if not found:
+                lines.append(f"{key}={val}\n")
+        
+        update_env_var(env_lines, "USER_MAX_HR", body.max_hr)
+        update_env_var(env_lines, "USER_RESTING_HR", body.resting_hr)
+        update_env_var(env_lines, "USER_TARGET_SLEEP_HOURS", body.target_sleep_hours)
+        
+        with open(".env", "w") as f:
+            f.writelines(env_lines)
+            
+        # Update current runtime variables
+        global USER_MAX_HR, USER_RESTING_HR, USER_TARGET_SLEEP_HOURS
+        USER_MAX_HR = body.max_hr
+        USER_RESTING_HR = body.resting_hr
+        USER_TARGET_SLEEP_HOURS = body.target_sleep_hours
+        
+        logger.info("Updated .env and runtime user physiological baselines (baselines-only patch).")
+    except Exception as e:
+        logger.error(f"Failed to update baselines .env: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update baselines .env: {str(e)}")
+
+    return JSONResponse(content={"status": "success", "message": "Baselines updated successfully."})
 
 
 @app.get("/api/status", summary="OAuth token status and scope info")
@@ -310,9 +359,9 @@ async def get_health_data() -> JSONResponse:
 
         vo2_max = []
         try:
-            vo2_max = calculate_vo2_max(daily_resting_hr, USER_MAX_HR)
+            vo2_max = calculate_vo2_max_series(daily_resting_hr, USER_MAX_HR)
         except Exception as e:
-            logger.error(f"Auto-sync calculate_vo2_max failed: {e}")
+            logger.error(f"Auto-sync calculate_vo2_max_series failed: {e}")
 
         acute_stress = []
         try:
@@ -322,9 +371,9 @@ async def get_health_data() -> JSONResponse:
 
         sleep_debt = []
         try:
-            sleep_debt = calculate_sleep_debt(sleep, USER_TARGET_SLEEP_HOURS)
+            sleep_debt = calculate_sleep_debt_series(sleep, USER_TARGET_SLEEP_HOURS)
         except Exception as e:
-            logger.error(f"Auto-sync calculate_sleep_debt failed: {e}")
+            logger.error(f"Auto-sync calculate_sleep_debt_series failed: {e}")
 
         # Build compliance payload: 'hrv' contains daily_hrv for trends, 'raw_hrv' keeps intraday
         payload = {
@@ -347,7 +396,7 @@ async def get_health_data() -> JSONResponse:
         
         _cache["payload"] = payload
         _cache["synced_at"] = time.time()
-        _cache["last_sync_at"] = time.time()
+        _cache["auto_synced_at"] = time.time()
         
         # Check size bound
         payload_size = sys.getsizeof(json.dumps(_cache["payload"]))
@@ -374,16 +423,22 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
 
     Runs derived metric calculations and caches results in memory.
     """
-    last_sync = _cache.get("last_sync_at")
-    if last_sync is not None:
-        elapsed = time.time() - last_sync
+    if body.end_date < body.start_date:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "end_date must be after start_date"}
+        )
+    last_user_sync = _cache.get("user_synced_at")
+    if last_user_sync is not None:
+        elapsed = time.time() - last_user_sync
         if elapsed < 60:
             retry_after = int(60 - elapsed)
             return JSONResponse(
                 status_code=429,
                 content={
                     "error": "Sync cooldown active",
-                    "retry_after": retry_after
+                    "retry_after": retry_after,
+                    "last_user_sync": last_user_sync
                 }
             )
 
@@ -426,9 +481,9 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
 
     vo2_max = []
     try:
-        vo2_max = calculate_vo2_max(daily_resting_hr, USER_MAX_HR)
+        vo2_max = calculate_vo2_max_series(daily_resting_hr, USER_MAX_HR)
     except Exception as e:
-        logger.error(f"calculate_vo2_max failed: {e}")
+        logger.error(f"calculate_vo2_max_series failed: {e}")
 
     acute_stress = []
     try:
@@ -438,9 +493,9 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
 
     sleep_debt = []
     try:
-        sleep_debt = calculate_sleep_debt(sleep, USER_TARGET_SLEEP_HOURS)
+        sleep_debt = calculate_sleep_debt_series(sleep, USER_TARGET_SLEEP_HOURS)
     except Exception as e:
-        logger.error(f"calculate_sleep_debt failed: {e}")
+        logger.error(f"calculate_sleep_debt_series failed: {e}")
 
     # ── Build and cache compliance payload ────────────────────────────────────
     payload = {
@@ -463,7 +518,7 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
 
     _cache["payload"] = payload
     _cache["synced_at"] = time.time()
-    _cache["last_sync_at"] = time.time()
+    _cache["user_synced_at"] = time.time()
 
     # Check size bound
     payload_size = sys.getsizeof(json.dumps(_cache["payload"]))

@@ -225,34 +225,6 @@ class HealthAPIClient:
         logger.info(f"get_spo2: {len(normalized)} points returned.")
         return normalized
 
-    def get_stress(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        start_time = f"{start_date}T00:00:00"
-        end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        next_day_dt = end_date_dt + timedelta(days=1)
-        end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00"
-        filter_expr = f"steps.interval.civil_start_time >= \"{start_time}\" AND steps.interval.civil_start_time < \"{end_time}\""
-        
-        response = self._get("users/me/dataTypes/steps/dataPoints", {"filter": filter_expr, "pageSize": 10000})
-        if not response:
-            return []
-            
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
-        normalized = []
-        for pt in points:
-            steps_data = pt.get("steps", {})
-            ts = steps_data.get("interval", {}).get("startTime")
-            val = steps_data.get("count")
-            if ts and val is not None:
-                normalized.append({
-                    "timestamp": ts,
-                    "value": float(val),
-                    "data_type": "STEPS"
-                })
-        logger.info(f"get_stress: {len(normalized)} points returned.")
-        return normalized
-
     def get_steps(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
         start_time = f"{start_date}T00:00:00"
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
@@ -365,32 +337,6 @@ class HealthAPIClient:
                 })
         normalized.sort(key=lambda x: x["timestamp"])
         logger.info(f"get_daily_resting_hr: {len(normalized)} records returned.")
-        return normalized
-
-    async def get_temperature(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        body = {
-            "dataTypeName": ["daily-sleep-temperature-derivations"],
-            "startTime": f"{start_date}T00:00:00+00:00",
-            "endTime": f"{end_date}T23:59:59+00:00"
-        }
-        res = await self._post("dailyRollUp", body)
-        if not res:
-            return []
-            
-        points = res.get("rollupDataPoints", [])
-        normalized = []
-        for pt in points:
-            date_str = _parse_rollup_date(pt, "dailySleepTemperatureDerivations")
-            temp_data = pt.get("dailySleepTemperatureDerivations", {})
-            val = temp_data.get("nightlyTemperatureCelsius")
-            if val is not None:
-                normalized.append({
-                    "timestamp": date_str,
-                    "value": float(val),
-                    "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"
-                })
-        normalized.sort(key=lambda x: x["timestamp"])
-        logger.info(f"get_temperature: {len(normalized)} records returned.")
         return normalized
 
     async def get_sleep_temp(self, start_date: str, end_date: str) -> list[dict[str, Any]]:

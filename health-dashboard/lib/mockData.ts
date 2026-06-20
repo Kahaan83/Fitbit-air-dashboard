@@ -290,3 +290,108 @@ export const mockGoodSleepStreak: number = (() => {
 // Average deep sleep across sessions (sample fallback)
 export const mockAvgDeepSleep: number = 72;
 
+// 8. Raw Steps Data
+export interface StepsDataPoint {
+  timestamp: string;
+  value: number;
+  data_type: "steps";
+}
+
+export const mockStepsData: StepsDataPoint[] = dates.map((date, idx) => {
+  const rand = seededRandom(idx + 600);
+  const steps = Math.round(6000 + rand * 6000);
+  return {
+    timestamp: `${date}T18:00:00Z`,
+    value: steps,
+    data_type: "steps",
+  };
+});
+
+// 9. Sleep Sessions Data
+export interface SleepSessionDataPoint {
+  timestamp: string;
+  value: {
+    total_sleep_minutes: number;
+    stages: {
+      rem: number;
+      deep: number;
+      light: number;
+      awake: number;
+    };
+  };
+  data_type: "sleep";
+}
+
+export const mockSleepData: SleepSessionDataPoint[] = dates.map((date, idx) => {
+  const sleepDebtObj = mockSleepDebt[idx];
+  const total_sleep_minutes = sleepDebtObj.actual_hours * 60;
+  
+  const rand = seededRandom(idx + 700);
+  const remPct = 0.20 + rand * 0.05;
+  const deepPct = 0.15 + (1 - rand) * 0.06;
+  const awakePct = 0.08 + rand * 0.04;
+  const lightPct = 1 - remPct - deepPct - awakePct;
+
+  const rem = Math.round(total_sleep_minutes * remPct);
+  const deep = Math.round(total_sleep_minutes * deepPct);
+  const awake = Math.round(total_sleep_minutes * awakePct);
+  const light = Math.round(total_sleep_minutes * lightPct);
+
+  return {
+    timestamp: `${date}T08:00:00Z`,
+    value: {
+      total_sleep_minutes: Math.round(total_sleep_minutes),
+      stages: {
+        rem,
+        deep,
+        light,
+        awake,
+      },
+    },
+    data_type: "sleep",
+  };
+});
+
+// 10. Heart Rate Zones & Readings Data
+export interface HeartRateReading {
+  timestamp: string;
+  value: number;
+  data_type: "heart_rate";
+  zone?: string;
+}
+
+export const mockHeartRateZones: HeartRateReading[] = [];
+(() => {
+  for (let idx = 0; idx < 96; idx++) {
+    const totalMins = idx * 15;
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    const timeStr = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+    const timestamp = `${ANCHOR_DATE}T${timeStr}:00Z`;
+
+    const rand = seededRandom(idx + 800);
+    let bpm = Math.round(55 + rand * 8);
+    let zone = "Zone 1";
+
+    if (idx >= 68 && idx <= 72) {
+      const exerciseRand = seededRandom(idx + 850);
+      bpm = Math.round(110 + exerciseRand * 50);
+      const pct = (bpm / 185) * 100;
+      if (pct > 85) zone = "Zone 5";
+      else if (pct > 70) zone = "Zone 4";
+      else if (pct > 60) zone = "Zone 3";
+      else if (pct > 50) zone = "Zone 2";
+    }
+
+    mockHeartRateZones.push({
+      timestamp,
+      value: bpm,
+      data_type: "heart_rate",
+      zone,
+    });
+  }
+})();
+
+// 11. Stress Events
+export const mockStressEvents = mockAcuteStress;
+

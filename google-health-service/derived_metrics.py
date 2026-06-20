@@ -141,60 +141,58 @@ def calculate_ans_balance(hrv_series: list[dict]) -> list[dict]:
     return ans_results
 
 
-def calculate_vo2_max(daily_resting_hr_series: list[dict], hr_max: float) -> list[dict] | float | None:
+def calculate_vo2_max(heart_rate_data: list[dict], hr_max: float = 185.0) -> float | None:
     """
     Estimates VO2 Max using the Uth-Sørensen formula: 15.3 × (HRmax / HRrest).
-
-    Args:
-        daily_resting_hr_series: List of dicts from fetch_daily_resting_hr() or heart rate series.
-        hr_max: User's tested maximum heart rate (float, bpm).
-
-    Returns:
-        Test mode: float or None
-        Prod mode: List of dicts: [{"date": "YYYY-MM-DD", "vo2_max": float}]
+    Returns a single float or None.
     """
-    if not daily_resting_hr_series:
+    if not heart_rate_data:
         logger.debug("calculate_vo2_max: Empty HR series. Returning None.")
         return None
 
-    is_test = any("pytest" in m for m in sys.modules)
-
-    # In test context, we handle the specific requirements for returning None or a float.
-    if is_test:
-        # Check if the series has zone info (for raw HR series passed to test)
-        has_zones = any("zone" in r for r in daily_resting_hr_series)
-        if has_zones:
-            # Check for zone 4 or 5 entries
-            zone_4_5 = [
-                r for r in daily_resting_hr_series
-                if str(r.get("zone", "")).strip().lower() in ["zone 4", "zone 5", "cardio", "peak", "4", "5"]
-            ]
-            if not zone_4_5:
-                return None
-
-        # Extract heart rate/resting heart rate values
-        hr_vals = []
-        for r in daily_resting_hr_series:
-            val = r.get("value") or r.get("bpm")
-            if val is not None:
-                try:
-                    hr_vals.append(float(val))
-                except (ValueError, TypeError):
-                    continue
-
-        if not hr_vals:
+    # Check if the series has zone info (for raw HR series passed to test/impl)
+    has_zones = any("zone" in r for r in heart_rate_data)
+    if has_zones:
+        # Check for zone 4 or 5 entries
+        zone_4_5 = [
+            r for r in heart_rate_data
+            if str(r.get("zone", "")).strip().lower() in ["zone 4", "zone 5", "cardio", "peak", "4", "5"]
+        ]
+        if not zone_4_5:
             return None
 
-        # Calculate single float VO2 Max using minimum (resting) heart rate in the dataset
-        rhr = min(hr_vals)
-        if rhr <= 0:
-            return None
-        vo2 = 15.3 * (hr_max / rhr)
-        return max(20.0, min(80.0, vo2))
+    # Extract heart rate/resting heart rate values
+    hr_vals = []
+    for r in heart_rate_data:
+        val = r.get("value") or r.get("bpm")
+        if val is not None:
+            try:
+                hr_vals.append(float(val))
+            except (ValueError, TypeError):
+                continue
 
-    # Production mode: return list of daily entries
+    if not hr_vals:
+        return None
+
+    # Calculate single float VO2 Max using minimum (resting) heart rate in the dataset
+    rhr = min(hr_vals)
+    if rhr <= 0:
+        return None
+    vo2 = 15.3 * (hr_max / rhr)
+    return max(20.0, min(80.0, vo2))
+
+
+def calculate_vo2_max_series(heart_rate_data: list[dict], hr_max: float = 185.0) -> list[dict]:
+    """
+    Estimates VO2 Max series using the Uth-Sørensen formula for trend charting.
+    Returns a list of dicts: [{"date": "YYYY-MM-DD", "vo2_max": float}]
+    """
+    if not heart_rate_data:
+        logger.debug("calculate_vo2_max_series: Empty HR series. Returning empty list.")
+        return []
+
     results = []
-    for record in daily_resting_hr_series:
+    for record in heart_rate_data:
         ts = record.get("timestamp") or record.get("date")
         if not ts:
             continue
@@ -213,12 +211,10 @@ def calculate_vo2_max(daily_resting_hr_series: list[dict], hr_max: float) -> lis
                 "vo2_max": round(vo2, 2)
             })
         except (ValueError, TypeError) as e:
-            logger.warning(f"calculate_vo2_max: Invalid resting HR value {rhr}: {e}")
+            logger.warning(f"calculate_vo2_max_series: Invalid resting HR value {rhr}: {e}")
             continue
 
     results.sort(key=lambda x: x["date"])
-    if not results:
-        return None
     return results
 
 
@@ -352,29 +348,48 @@ def identify_acute_stress(
     return formatted_events
 
 
-def calculate_sleep_debt(sleep_series: list[dict], target_hours: float) -> list[dict] | float:
+def calculate_sleep_debt(sleep_data: list[dict], target_hours: float = 8.0) -> float:
     """
     Computes sleep debt against a user-defined target.
-
-    Args:
-        sleep_series: List of dicts from fetch_sleep() with 'date' and
-                      'total_sleep_minutes' keys.
-        target_hours: User's target sleep duration in hours.
-
-    Returns:
-        Test mode: cumulative sleep debt (float or 0)
-        Prod mode: List of dicts: [{"date": "YYYY-MM-DD", "actual_hours": float,
-                                     "target_hours": float, "debt_hours": float}]
+    Returns cumulative sleep debt as a float.
     """
-    is_test = any("pytest" in m for m in sys.modules)
+    if not sleep_data:
+        logger.debug("calculate_sleep_debt: Empty sleep series. Returning 0.")
+        return 0.0
 
-    if not sleep_series:
-        logger.debug("calculate_sleep_debt: Empty sleep series. Returning empty response.")
-        return 0 if is_test else []
+    cumulative_debt = 0.0
+    for record in sleep_data:
+        val = record.get("value")
+        if not val or not isinstance(val, dict):
+            continue
+
+        total_min = val.get("total_sleep_minutes")
+        if total_min is None:
+            continue
+
+        try:
+            actual = float(total_min) / 60.0
+            debt = target_hours - actual
+            cumulative_debt += debt
+        except (ValueError, TypeError) as e:
+            logger.warning(f"calculate_sleep_debt: Invalid minutes value {total_min}: {e}")
+            continue
+
+    return round(cumulative_debt, 2) if cumulative_debt != 0 else 0.0
+
+
+def calculate_sleep_debt_series(sleep_data: list[dict], target_hours: float = 8.0) -> list[dict]:
+    """
+    Computes sleep debt series against a user-defined target for trend charting.
+    Returns a list of dicts: [{"date": "YYYY-MM-DD", "actual_hours": float,
+                               "target_hours": float, "debt_hours": float}]
+    """
+    if not sleep_data:
+        logger.debug("calculate_sleep_debt_series: Empty sleep series. Returning empty list.")
+        return []
 
     results = []
-    cumulative_debt = 0.0
-    for record in sleep_series:
+    for record in sleep_data:
         ts = record.get("timestamp") or record.get("date")
         if not ts:
             continue
@@ -391,7 +406,6 @@ def calculate_sleep_debt(sleep_series: list[dict], target_hours: float) -> list[
         try:
             actual = float(total_min) / 60.0
             debt = target_hours - actual
-            cumulative_debt += debt
             results.append({
                 "date": date_str,
                 "actual_hours": round(actual, 2),
@@ -399,11 +413,8 @@ def calculate_sleep_debt(sleep_series: list[dict], target_hours: float) -> list[
                 "debt_hours": round(debt, 2),
             })
         except (ValueError, TypeError) as e:
-            logger.warning(f"calculate_sleep_debt: Invalid minutes value {total_min}: {e}")
+            logger.warning(f"calculate_sleep_debt_series: Invalid minutes value {total_min}: {e}")
             continue
-
-    if is_test:
-        return round(cumulative_debt, 2) if cumulative_debt != 0 else 0
 
     results.sort(key=lambda x: x["date"])
     return results
