@@ -11,12 +11,14 @@ Edge cases handled:
   - Non-allowlisted account      → OAuth returns 403 → logged with fix instructions
 """
 
+import asyncio
 import json
 import logging
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from fastapi import HTTPException
 from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -84,17 +86,7 @@ def _has_required_scopes(creds: Credentials) -> bool:
     return False
 
 
-def _run_browser_consent() -> Credentials:
-    """
-    Runs the full InstalledAppFlow browser consent.
-
-    Opens a local redirect server, launches the browser, waits for the user
-    to complete OAuth, then saves the resulting credentials to token.json.
-
-    Raises:
-        FileNotFoundError: If credentials.json is not found.
-        Exception: If the OAuth flow is cancelled or fails.
-    """
+def _create_installed_app_flow() -> InstalledAppFlow:
     creds_path = Path(CREDENTIALS_PATH)
     if not creds_path.exists():
         raise FileNotFoundError(
@@ -132,11 +124,14 @@ def _run_browser_consent() -> Credentials:
     except (json.JSONDecodeError, KeyError) as e:
         raise ValueError(f"credentials.json is invalid: {e}")
 
-    logger.info("Starting browser OAuth consent flow...")
-    flow = InstalledAppFlow.from_client_config(creds_data, SCOPES)
+    return InstalledAppFlow.from_client_config(creds_data, SCOPES)
 
-    # run_local_server: starts a local HTTP server on a random available port
-    # and opens the browser automatically.
+
+def _run_browser_consent_sync(flow: InstalledAppFlow) -> Credentials:
+    """
+    Synchronous blocking browser consent flow execution.
+    """
+    logger.info("Starting browser OAuth consent flow (sync)...")
     creds = flow.run_local_server(
         port=0,
         success_message=(
@@ -144,10 +139,37 @@ def _run_browser_consent() -> Credentials:
         ),
         open_browser=True,
     )
-
     _save_token(creds)
     logger.info("OAuth consent complete. token.json saved.")
     return creds
+
+
+async def _run_browser_consent(flow: InstalledAppFlow) -> Credentials:
+    """
+    Asynchronous browser consent flow executing in thread pool with 120s timeout.
+    """
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(_run_browser_consent_sync, flow),
+            timeout=120.0
+        )
+    except (asyncio.TimeoutError, TimeoutError):
+        logger.error("OAuth timeout — user did not complete consent within 120 seconds")
+        raise HTTPException(
+            status_code=503,
+            detail="OAuth timeout — user did not complete consent in time"
+        )
+
+
+def _handle_oauth_exception(e: Exception) -> None:
+    error_msg = str(e)
+    if "access_denied" in error_msg or "403" in error_msg:
+        raise RuntimeError(
+            "OAuth was denied. Your Google account may not be on the "
+            "GCP allowlist. Go to GCP Console → APIs & Services → "
+            "OAuth consent screen → Test users, and add your email."
+        ) from e
+    raise
 
 
 def _save_token(creds: Credentials) -> None:
@@ -171,27 +193,8 @@ def _save_token(creds: Credentials) -> None:
     logger.debug("token.json updated.")
 
 
-def get_credentials() -> Credentials:
-    """
-    Returns a valid, refreshed google.oauth2.credentials.Credentials object.
-
-    Decision tree:
-      1. token.json exists AND covers all required scopes AND has a refresh token
-         → try silent refresh if expired
-         → return valid credentials
-      2. token.json missing, corrupt, scope-mismatch, or refresh failed
-         → run full browser consent flow
-         → save token.json
-         → return fresh credentials
-
-    Returns:
-        google.oauth2.credentials.Credentials: A valid credentials object with
-        all three required Health API scopes.
-
-    Raises:
-        FileNotFoundError: If credentials.json is not found when consent is needed.
-        RuntimeError: If a non-allowlisted account attempts to authenticate.
-    """
+def _load_and_refresh_cached_credentials() -> Credentials | None:
+    """Loads token.json if it exists and silently refreshes it if expired."""
     token_path = Path(TOKEN_PATH)
     creds: Credentials | None = None
 
@@ -236,19 +239,45 @@ def get_credentials() -> Credentials:
             logger.error(f"Unexpected error during token refresh: {e}. Re-authenticating.")
             creds = None
 
-    # ── Fall back to full browser consent ─────────────────────────────────────
-    if creds is None or not creds.valid:
-        try:
-            creds = _run_browser_consent()
-        except Exception as e:
-            error_msg = str(e)
-            if "access_denied" in error_msg or "403" in error_msg:
-                raise RuntimeError(
-                    "OAuth was denied. Your Google account may not be on the "
-                    "GCP allowlist. Go to GCP Console → APIs & Services → "
-                    "OAuth consent screen → Test users, and add your email."
-                ) from e
-            raise
+    if creds is not None and creds.valid:
+        return creds
+    return None
+
+
+def get_credentials_sync() -> Credentials:
+    """
+    Synchronous version of get_credentials() for synchronous callers (like client.py).
+    Does NOT yield to the asyncio event loop.
+    """
+    creds = _load_and_refresh_cached_credentials()
+    if creds is not None:
+        return creds
+
+    # ── Fall back to full browser consent (synchronous) ─────────────────────
+    try:
+        flow = _create_installed_app_flow()
+        creds = _run_browser_consent_sync(flow)
+    except Exception as e:
+        _handle_oauth_exception(e)
+
+    return creds
+
+
+async def get_credentials() -> Credentials:
+    """
+    Returns a valid, refreshed google.oauth2.credentials.Credentials object.
+    Uses asyncio.to_thread to run the browser consent server in a thread pool.
+    """
+    creds = _load_and_refresh_cached_credentials()
+    if creds is not None:
+        return creds
+
+    # ── Fall back to full browser consent (asynchronous thread pool) ─────────
+    try:
+        flow = _create_installed_app_flow()
+        creds = await _run_browser_consent(flow)
+    except Exception as e:
+        _handle_oauth_exception(e)
 
     return creds
 

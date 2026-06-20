@@ -75,7 +75,7 @@ def fetch_steps(
     client = HealthAPIClient(credentials.token)
     return client.get_steps(date_range["start_date"], date_range["end_date"])
 
-def fetch_daily_hrv(
+async def fetch_daily_hrv(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -83,9 +83,9 @@ def fetch_daily_hrv(
     _validate_date(date_range.get("start_date", ""), "start_date")
     _validate_date(date_range.get("end_date", ""), "end_date")
     client = HealthAPIClient(credentials.token)
-    return client.get_daily_hrv(date_range["start_date"], date_range["end_date"])
+    return await client.get_daily_hrv(date_range["start_date"], date_range["end_date"])
 
-def fetch_daily_spo2(
+async def fetch_daily_spo2(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -93,9 +93,9 @@ def fetch_daily_spo2(
     _validate_date(date_range.get("start_date", ""), "start_date")
     _validate_date(date_range.get("end_date", ""), "end_date")
     client = HealthAPIClient(credentials.token)
-    return client.get_daily_spo2(date_range["start_date"], date_range["end_date"])
+    return await client.get_daily_spo2(date_range["start_date"], date_range["end_date"])
 
-def fetch_daily_resting_hr(
+async def fetch_daily_resting_hr(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -103,9 +103,9 @@ def fetch_daily_resting_hr(
     _validate_date(date_range.get("start_date", ""), "start_date")
     _validate_date(date_range.get("end_date", ""), "end_date")
     client = HealthAPIClient(credentials.token)
-    return client.get_daily_resting_hr(date_range["start_date"], date_range["end_date"])
+    return await client.get_daily_resting_hr(date_range["start_date"], date_range["end_date"])
 
-def fetch_sleep_temp(
+async def fetch_sleep_temp(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -116,7 +116,7 @@ def fetch_sleep_temp(
         logger.info("fetch_sleep_temp: SKIN_TEMP_AVAILABLE=false — skipping.")
         return []
     client = HealthAPIClient(credentials.token)
-    return client.get_sleep_temp(date_range["start_date"], date_range["end_date"])
+    return await client.get_sleep_temp(date_range["start_date"], date_range["end_date"])
 
 def fetch_sleep(
     credentials: Credentials,
