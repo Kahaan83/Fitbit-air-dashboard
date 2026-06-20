@@ -56,7 +56,7 @@ export function WhoopRing({
             cy="70"
             r={radius}
             fill="none"
-            stroke="#1C1C1C"
+            stroke="var(--bg-card-hover)"
             strokeWidth="10"
           />
           {/* Active fill ring */}
@@ -80,7 +80,7 @@ export function WhoopRing({
             x="70"
             y="80"
             textAnchor="middle"
-            fill="#FFFFFF"
+            fill="var(--text-primary)"
             style={{
               fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif",
               fontWeight: 700,
@@ -96,7 +96,7 @@ export function WhoopRing({
         </svg>
       </div>
       {/* Label under the ring */}
-      <span className="mt-3 flex items-center justify-center gap-0.5 text-[11px] font-medium tracking-[0.1em] text-[#888888] uppercase">
+      <span className="mt-3 flex items-center justify-center gap-0.5 text-[11px] font-medium tracking-[0.1em] text-[var(--text-secondary)] uppercase">
         {label} &gt;
       </span>
     </div>

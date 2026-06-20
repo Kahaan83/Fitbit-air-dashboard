@@ -19,35 +19,38 @@ export function StressMonitorCard({
   const getLabelColor = (lvl: string) => {
     switch (lvl.toUpperCase()) {
       case "LOW":
-        return "#00FF87";
+        return "var(--accent-green)";
       case "MEDIUM":
-        return "#FFB800";
+        return "var(--accent-amber)";
       case "HIGH":
-        return "#FF3B5C";
+        return "var(--accent-red)";
       default:
-        return "#888888";
+        return "var(--text-secondary)";
     }
   };
 
   return (
     <div
       onClick={onClick}
-      className={`rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#1C1C1C] p-5 select-none transition-all ${
-        onClick ? "cursor-pointer hover:bg-[#252525] active:scale-[0.99]" : ""
+      className={`rounded-2xl border-[0.5px] border-[var(--border-soft)] bg-[var(--bg-card)] p-5 select-none transition-all ${
+        onClick ? "cursor-pointer hover:bg-[var(--bg-card-hover)] active:scale-[0.99]" : ""
       }`}
     >
       {/* Title Row */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-[12px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+        <span className="text-[12px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
           STRESS MONITOR
         </span>
-        <ChevronRight className="h-4 w-4 text-[#444444]" />
+        <ChevronRight className="h-4 w-4 text-[var(--text-tertiary)]" />
       </div>
 
       {/* Status Row */}
       <div className="flex items-center gap-3">
         {/* Status Badge */}
-        <div className="rounded-[6px] bg-[#1A3D2B] px-2 py-1.5 flex items-center justify-center font-bold text-sm text-[#00FF87] min-w-[28px] text-center">
+        <div 
+          className="rounded-[6px] bg-[var(--bg-base)] border border-[var(--border-soft)] px-2 py-1.5 flex items-center justify-center font-bold text-sm min-w-[28px] text-center"
+          style={{ color: getLabelColor(label) }}
+        >
           {score.toFixed(1)}
         </div>
         {/* Status Text & Subtitle */}
@@ -58,7 +61,7 @@ export function StressMonitorCard({
           >
             {label} STRESS
           </span>
-          <span className="text-[13px] text-[#888888] mt-0.5">
+          <span className="text-[13px] text-[var(--text-secondary)] mt-0.5">
             Peak at {peakTime}
           </span>
         </div>

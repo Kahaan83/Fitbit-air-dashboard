@@ -19,8 +19,8 @@ export default function Sidebar() {
     <aside style={{
       width: 220,
       minHeight: "100vh",
-      background: "#0A0A0A",
-      borderRight: "0.5px solid rgba(255,255,255,0.08)",
+      background: "var(--bg-surface)",
+      borderRight: "0.5px solid var(--border-soft)",
       display: "flex",
       flexDirection: "column",
       padding: "24px 0",
@@ -31,7 +31,7 @@ export default function Sidebar() {
 
       {/* App name */}
       <h2 style={{ padding: "0 24px 32px", letterSpacing: "0.15em",
-        fontSize: 13, color: "#888", fontWeight: 500, margin: 0 }}>
+        fontSize: 13, color: "var(--text-secondary)", fontWeight: 500, margin: 0 }}>
         FITBIT AIR
       </h2>
 
@@ -43,9 +43,9 @@ export default function Sidebar() {
             <Link key={item.href} href={item.href} style={{
               display: "flex", alignItems: "center", gap: 12,
               padding: "10px 24px", textDecoration: "none",
-              color: active ? "#00FF87" : "#666",
-              background: active ? "rgba(0,255,135,0.06)" : "transparent",
-              borderRight: active ? "2px solid #00FF87" : "2px solid transparent",
+              color: active ? "var(--accent-primary)" : "var(--text-secondary)",
+              background: active ? "var(--border-subtle)" : "transparent",
+              borderRight: active ? "2px solid var(--accent-primary)" : "2px solid transparent",
               fontSize: 14, fontWeight: active ? 500 : 400,
               transition: "all 0.15s",
             }}>
@@ -64,7 +64,7 @@ export default function Sidebar() {
             display: "flex",
             alignItems: "center",
             gap: 12,
-            color: "#666",
+            color: "var(--text-secondary)",
             textDecoration: "none",
             fontSize: 14,
             padding: "10px 0",

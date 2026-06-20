@@ -70,15 +70,7 @@ class HealthAPIClient:
             return None
 
     async def _post(self, endpoint: str, body: dict) -> dict | None:
-        if endpoint == "dailyRollUp":
-            if "/v4" in self.base_url:
-                base = self.base_url.replace("/v4", "/v1")
-            else:
-                base = self.base_url
-            url = f"{base}/users/me/dailyRollUp"
-        else:
-            url = f"{self.base_url}/{endpoint}"
-
+        url = f"{self.base_url}/{endpoint}"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
@@ -175,13 +167,13 @@ class HealthAPIClient:
         logger.info(f"get_intraday_hrv: {len(normalized)} points returned.")
         return normalized
 
-    def get_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+    async def get_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
         intraday = self.get_intraday_hrv(start_date, end_date)
         if intraday:
             return intraday
             
         logger.warning("Intraday HRV is unavailable. Falling back to daily aggregates.")
-        return self.get_daily_hrv(start_date, end_date)
+        return await self.get_daily_hrv(start_date, end_date)
 
     def get_spo2(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
         start_time = f"{start_date}T00:00:00Z"
@@ -261,13 +253,43 @@ class HealthAPIClient:
         logger.info(f"get_steps: {len(normalized)} points returned.")
         return normalized
 
-    async def get_daily_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        body = {
-            "dataTypeName": ["daily-heart-rate-variability"],
-            "startTime": f"{start_date}T00:00:00+00:00",
-            "endTime": f"{end_date}T23:59:59+00:00"
+    def _build_daily_rollup_body(self, start_date: str, end_date: str) -> dict:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        return {
+            "range": {
+                "start": {
+                    "date": {
+                        "year": start_dt.year,
+                        "month": start_dt.month,
+                        "day": start_dt.day
+                    },
+                    "time": {
+                        "hours": 0,
+                        "minutes": 0,
+                        "seconds": 0,
+                        "nanos": 0
+                    }
+                },
+                "end": {
+                    "date": {
+                        "year": end_dt.year,
+                        "month": end_dt.month,
+                        "day": end_dt.day
+                    },
+                    "time": {
+                        "hours": 0,
+                        "minutes": 0,
+                        "seconds": 0,
+                        "nanos": 0
+                    }
+                }
+            }
         }
-        res = await self._post("dailyRollUp", body)
+
+    async def get_daily_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        body = self._build_daily_rollup_body(start_date, end_date)
+        res = await self._post("users/me/dataTypes/daily-heart-rate-variability/dataPoints:dailyRollUp", body)
         if not res:
             return []
             
@@ -288,12 +310,8 @@ class HealthAPIClient:
         return normalized
 
     async def get_daily_spo2(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        body = {
-            "dataTypeName": ["daily-oxygen-saturation"],
-            "startTime": f"{start_date}T00:00:00+00:00",
-            "endTime": f"{end_date}T23:59:59+00:00"
-        }
-        res = await self._post("dailyRollUp", body)
+        body = self._build_daily_rollup_body(start_date, end_date)
+        res = await self._post("users/me/dataTypes/daily-oxygen-saturation/dataPoints:dailyRollUp", body)
         if not res:
             return []
             
@@ -314,12 +332,8 @@ class HealthAPIClient:
         return normalized
 
     async def get_daily_resting_hr(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        body = {
-            "dataTypeName": ["daily-resting-heart-rate"],
-            "startTime": f"{start_date}T00:00:00+00:00",
-            "endTime": f"{end_date}T23:59:59+00:00"
-        }
-        res = await self._post("dailyRollUp", body)
+        body = self._build_daily_rollup_body(start_date, end_date)
+        res = await self._post("users/me/dataTypes/daily-resting-heart-rate/dataPoints:dailyRollUp", body)
         if not res:
             return []
             
@@ -340,12 +354,8 @@ class HealthAPIClient:
         return normalized
 
     async def get_sleep_temp(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        body = {
-            "dataTypeName": ["daily-sleep-temperature-derivations"],
-            "startTime": f"{start_date}T00:00:00+00:00",
-            "endTime": f"{end_date}T23:59:59+00:00"
-        }
-        res = await self._post("dailyRollUp", body)
+        body = self._build_daily_rollup_body(start_date, end_date)
+        res = await self._post("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints:dailyRollUp", body)
         if not res:
             return []
             

@@ -211,6 +211,9 @@ async def update_settings(body: SettingsRequest) -> JSONResponse:
         update_env_var(env_lines, "USER_MAX_HR", body.max_hr)
         update_env_var(env_lines, "USER_RESTING_HR", body.resting_hr)
         update_env_var(env_lines, "USER_TARGET_SLEEP_HOURS", body.target_sleep_hours)
+        if body.client_secret and body.client_secret.strip():
+            update_env_var(env_lines, "GCP_CLIENT_SECRET", body.client_secret.strip())
+            os.environ["GCP_CLIENT_SECRET"] = body.client_secret.strip()
         
         with open(".env", "w") as f:
             f.writelines(env_lines)
@@ -221,7 +224,7 @@ async def update_settings(body: SettingsRequest) -> JSONResponse:
         USER_RESTING_HR = body.resting_hr
         USER_TARGET_SLEEP_HOURS = body.target_sleep_hours
         
-        logger.info("Updated .env and runtime user physiological baselines.")
+        logger.info("Updated .env and runtime user physiological baselines (including GCP secret if provided).")
     except Exception as e:
         logger.error(f"Failed to update .env: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update .env: {str(e)}")
@@ -341,7 +344,7 @@ async def get_health_data() -> JSONResponse:
         
         # Fetch all data streams
         heart_rate = fetch_heart_rate(credentials, date_range)
-        hrv = fetch_hrv(credentials, date_range)
+        hrv = await fetch_hrv(credentials, date_range)
         spo2 = fetch_spo2(credentials, date_range)
         steps = fetch_steps(credentials, date_range)
         daily_hrv = await fetch_daily_hrv(credentials, date_range)
@@ -463,7 +466,7 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
     logger.info("Fetching raw data from Google Health API v4...")
 
     heart_rate = fetch_heart_rate(credentials, date_range)
-    hrv = fetch_hrv(credentials, date_range)
+    hrv = await fetch_hrv(credentials, date_range)
     spo2 = fetch_spo2(credentials, date_range)
     steps = fetch_steps(credentials, date_range)
     daily_hrv = await fetch_daily_hrv(credentials, date_range)

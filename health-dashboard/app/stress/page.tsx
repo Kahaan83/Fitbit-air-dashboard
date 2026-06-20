@@ -16,13 +16,13 @@ export default function StressMonitorPage() {
   const getLabelColor = (lvl: string) => {
     switch (lvl.toUpperCase()) {
       case "LOW":
-        return "#00FF87";
+        return "var(--accent-green)";
       case "MEDIUM":
-        return "#FFB800";
+        return "var(--accent-amber)";
       case "HIGH":
-        return "#FF3B5C";
+        return "var(--accent-red)";
       default:
-        return "#888888";
+        return "var(--text-secondary)";
     }
   };
 
@@ -46,9 +46,9 @@ export default function StressMonitorPage() {
       </div>
 
       {/* Main card */}
-      <div className="rounded-2xl border border-[var(--border-soft)] bg-[#1C1C1C] p-6 space-y-6">
+      <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-6 space-y-6">
         <div className="flex items-center justify-between border-b border-[var(--border-soft)] pb-4">
-          <span className="text-sm font-semibold tracking-wide text-[#888888]">
+          <span className="text-sm font-semibold tracking-wide text-[var(--text-secondary)]">
             PHYSIOLOGICAL STRESS STATE
           </span>
           <span
@@ -60,21 +60,24 @@ export default function StressMonitorPage() {
         </div>
 
         {/* Big Stress Score representation */}
-        <div className="flex flex-col items-center justify-center py-6 bg-[#111111] rounded-xl border border-[var(--border-subtle)]">
-          <span className="text-6xl font-bold text-[#FFFFFF]">{stressScore.toFixed(1)}</span>
+        <div className="flex flex-col items-center justify-center py-6 bg-[var(--bg-base)] rounded-xl border border-[var(--border-subtle)]">
+          <span className="text-6xl font-bold text-[var(--text-primary)]">{stressScore.toFixed(1)}</span>
           <span className="text-xs text-[var(--text-secondary)] uppercase tracking-widest mt-1">
             Current Stress Index
           </span>
           <span
-            className="text-xs font-bold uppercase tracking-wider mt-3 px-2 py-0.5 rounded bg-[#1A3D2B]"
-            style={{ color: getLabelColor(stressLabel) }}
+            className="text-xs font-bold uppercase tracking-wider mt-3 px-2 py-0.5 rounded border border-[var(--border-soft)]"
+            style={{
+              backgroundColor: "rgba(34, 211, 165, 0.1)",
+              color: getLabelColor(stressLabel)
+            }}
           >
             {stressLabel}
           </span>
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide text-[#888888]">
+          <h3 className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
             stress load details
           </h3>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
@@ -82,15 +85,15 @@ export default function StressMonitorPage() {
           </p>
 
           <div className="grid grid-cols-2 gap-4 pt-2">
-            <div className="p-4 rounded-xl bg-[#111111] border border-[var(--border-subtle)] flex items-center gap-3">
-              <Zap className="h-5 w-5 text-[#FFB800]" />
+            <div className="p-4 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] flex items-center gap-3">
+              <Zap className="h-5 w-5 text-[var(--accent-amber)]" />
               <div>
                 <span className="text-xs text-[var(--text-secondary)] block">Stress Events</span>
                 <span className="text-sm font-bold text-[var(--text-primary)]">{stressCount} events / 30d</span>
               </div>
             </div>
-            <div className="p-4 rounded-xl bg-[#111111] border border-[var(--border-subtle)] flex items-center gap-3">
-              <Sparkles className="h-5 w-5 text-[#00FF87]" />
+            <div className="p-4 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-[var(--accent-green)]" />
               <div>
                 <span className="text-xs text-[var(--text-secondary)] block">Peak Time</span>
                 <span className="text-sm font-bold text-[var(--text-primary)]">4:15 PM</span>

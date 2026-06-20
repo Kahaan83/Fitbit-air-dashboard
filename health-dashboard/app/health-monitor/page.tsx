@@ -76,14 +76,14 @@ export default function HealthMonitorPage() {
       </div>
 
       {/* Main card */}
-      <div className="rounded-2xl border border-[var(--border-soft)] bg-[#1C1C1C] p-6 space-y-6">
+      <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-6 space-y-6">
         <div className="flex items-center justify-between border-b border-[var(--border-soft)] pb-4">
-          <span className="text-sm font-semibold tracking-wide text-[#888888]">
+          <span className="text-sm font-semibold tracking-wide text-[var(--text-secondary)]">
             SYSTEM STATUS
           </span>
           <span
             className="text-sm font-bold tracking-wider"
-            style={{ color: allInRange ? "#00FF87" : "#FF3B5C" }}
+            style={{ color: allInRange ? "var(--accent-green)" : "var(--accent-red)" }}
           >
             {allInRange ? "ALL SYSTEMS OPTIMAL" : "ATTENTION REQUIRED"}
           </span>
@@ -94,7 +94,7 @@ export default function HealthMonitorPage() {
           {metrics.map((metric) => (
             <div
               key={metric.name}
-              className="flex items-center justify-between p-4 rounded-xl bg-[#111111] border border-[var(--border-subtle)]"
+              className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)]"
             >
               <div>
                 <h3 className="text-sm font-semibold text-[var(--text-primary)]">
@@ -112,22 +112,22 @@ export default function HealthMonitorPage() {
                   </span>
                   <span
                     className="text-[11px] font-medium"
-                    style={{ color: metric.inRange ? "#00FF87" : "#FF3B5C" }}
+                    style={{ color: metric.inRange ? "var(--accent-green)" : "var(--accent-red)" }}
                   >
                     {metric.status}
                   </span>
                 </div>
 
                 <div
-                  className="rounded-[6px] p-1 flex items-center justify-center"
+                  className="rounded-[6px] p-1 flex items-center justify-center border border-[var(--border-soft)]"
                   style={{
-                    backgroundColor: metric.inRange ? "rgba(26, 61, 43, 0.6)" : "rgba(255, 59, 92, 0.1)",
+                    backgroundColor: metric.inRange ? "rgba(34, 211, 165, 0.1)" : "rgba(244, 84, 106, 0.1)",
                   }}
                 >
                   {metric.inRange ? (
-                    <Check className="h-4 w-4 text-[#00FF87]" />
+                    <Check className="h-4 w-4 text-[var(--accent-green)]" />
                   ) : (
-                    <AlertTriangle className="h-4 w-4 text-[#FF3B5C]" />
+                    <AlertTriangle className="h-4 w-4 text-[var(--accent-red)]" />
                   )}
                 </div>
               </div>

@@ -32,8 +32,23 @@ def fetch_heart_rate(
     """Fetch intraday heart rate data via HealthAPIClient."""
     _validate_date(date_range.get("start_date", ""), "start_date")
     _validate_date(date_range.get("end_date", ""), "end_date")
+    
+    start_date = date_range["start_date"]
+    end_date = date_range["end_date"]
+    
+    try:
+        from datetime import datetime, timedelta
+        limit_days = int(os.getenv("HEART_RATE_DAYS_LIMIT", "7"))
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        if (end_dt - start_dt).days > limit_days:
+            start_date = (end_dt - timedelta(days=limit_days)).strftime("%Y-%m-%d")
+            logger.info(f"Limiting heart rate range from {date_range['start_date']} to {start_date} (limit: {limit_days} days) to prevent timeouts.")
+    except Exception as e:
+        logger.warning(f"Failed to apply heart rate date range limit: {e}")
+
     client = HealthAPIClient(credentials.token)
-    return client.get_heart_rate(date_range["start_date"], date_range["end_date"])
+    return client.get_heart_rate(start_date, end_date)
 
 def fetch_intraday_hrv(
     credentials: Credentials,
@@ -45,7 +60,7 @@ def fetch_intraday_hrv(
     client = HealthAPIClient(credentials.token)
     return client.get_intraday_hrv(date_range["start_date"], date_range["end_date"])
 
-def fetch_hrv(
+async def fetch_hrv(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -53,7 +68,7 @@ def fetch_hrv(
     _validate_date(date_range.get("start_date", ""), "start_date")
     _validate_date(date_range.get("end_date", ""), "end_date")
     client = HealthAPIClient(credentials.token)
-    return client.get_hrv(date_range["start_date"], date_range["end_date"])
+    return await client.get_hrv(date_range["start_date"], date_range["end_date"])
 
 def fetch_spo2(
     credentials: Credentials,

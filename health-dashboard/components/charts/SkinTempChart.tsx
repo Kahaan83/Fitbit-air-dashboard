@@ -15,18 +15,19 @@ import {
 import { useChartData } from "@/lib/useChartData";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
-import { cssVar } from "@/lib/cssVar";
+import { useDashboardStore } from "@/lib/store";
 
 export function SkinTempChart() {
   const { skinTemp } = useChartData();
+  const theme = useDashboardStore((state) => state.theme);
 
-  const colorTextSecondary = cssVar("--text-secondary") || "#888888";
-  const colorBorderSubtle = "rgba(255,255,255,0.04)";
-  const colorBorderMedium = "rgba(255,255,255,0.08)";
-  const colorBgSurface = "#1C1C1C";
-  const colorTextPrimary = "#FFFFFF";
-  const colorAccentRed = "#FF3B5C";
-  const colorAccentBlue = "#3B7FD4";
+  const colorTextSecondary = theme === "whoop" ? "#888888" : "#9090A8";
+  const colorBorderSubtle = theme === "whoop" ? "rgba(255,255,255,0.04)" : "rgba(124,109,250,0.08)";
+  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
+  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
+  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
+  const colorAccentRed = theme === "whoop" ? "#FF3B5C" : "#F4546A";
+  const colorAccentBlue = theme === "whoop" ? "#00D4FF" : "#38BDF8";
 
   const formatXAxis = (tickItem: string) => {
     try {
@@ -50,20 +51,20 @@ export function SkinTempChart() {
   return (
     <div
       data-testid="skin-temp-chart"
-      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] min-w-0"
+      className="rounded-2xl border-[0.5px] border-[var(--border-soft)] bg-[var(--bg-card)] p-[20px_24px] min-w-0"
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
           SKIN TEMPERATURE
         </span>
         <div className="flex items-center gap-3">
           <div className="flex gap-3 text-[10px] font-semibold uppercase tracking-wider">
-            <span className="flex items-center gap-1 text-[#FF3B5C]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FF3B5C]" /> Elevated
+            <span className="flex items-center gap-1 text-[var(--accent-red)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-red)]" /> Elevated
             </span>
-            <span className="flex items-center gap-1 text-[#3B7FD4]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#3B7FD4]" /> Suppressed
+            <span className="flex items-center gap-1 text-[var(--accent-sky)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-sky)]" /> Suppressed
             </span>
           </div>
           <MetricInfo metricKey="sleep_temp_deviation" />
@@ -96,7 +97,7 @@ export function SkinTempChart() {
                   borderColor: colorBorderMedium,
                   borderRadius: "8px",
                 }}
-                labelClassName="text-[#888888] text-xs font-mono"
+                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
                 itemStyle={{ color: colorTextPrimary, fontSize: "12px", fontWeight: "bold" }}
                 formatter={(value: any) => [`${value > 0 ? "+" : ""}${value} °C`, "Deviation"]}
               />

@@ -74,7 +74,7 @@ export default function OverviewPage() {
   }
 
   return (
-    <div style={{ background: "#000", minHeight: "100vh" }}>
+    <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
       <Header date={formattedDate} onPrev={handlePrev} onNext={handleNext} />
 
       {/* Main grid — 2 columns */}
@@ -99,8 +99,8 @@ export default function OverviewPage() {
 
           {/* Three rings stacked */}
           <div style={{
-            background: "#111",
-            border: "0.5px solid rgba(255,255,255,0.08)",
+            background: "var(--bg-surface)",
+            border: "0.5px solid var(--border-soft)",
             borderRadius: 16,
             padding: "24px 20px",
             display: "flex",
@@ -111,7 +111,7 @@ export default function OverviewPage() {
               value={sleepEfficiency || 93}
               label="SLEEP"
               unit="%"
-              color="#3B7FD4"
+              color="var(--chart-sleep)"
               size={100}
               onClick={() => router.push("/sleep")}
             />
@@ -119,7 +119,7 @@ export default function OverviewPage() {
               value={recoveryScore || 76}
               label="RECOVERY"
               unit="%"
-              color="#00FF87"
+              color="var(--chart-hrv)"
               size={120}
               onClick={() => router.push("/recovery")}
             />
@@ -127,7 +127,7 @@ export default function OverviewPage() {
               value={14.2}
               label="STRAIN"
               unit=""
-              color="#3B7FD4"
+              color="var(--chart-hr)"
               size={100}
               max={21}
             />

@@ -15,20 +15,19 @@ import { useChartData } from "@/lib/useChartData";
 import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
-import { cssVar } from "@/lib/cssVar";
 
 export function SleepDebtChart() {
   const { sleepDebt } = useChartData();
-  const { settings } = useDashboardStore();
+  const { settings, theme } = useDashboardStore();
   const target = settings.targetSleepHours;
 
-  const colorTextSecondary = cssVar("--text-secondary") || "#888888";
-  const colorBorderSubtle = "rgba(255,255,255,0.04)";
-  const colorBorderMedium = "rgba(255,255,255,0.08)";
-  const colorBgSurface = "#1C1C1C";
-  const colorTextPrimary = "#FFFFFF";
-  const colorChartSleep = "#3B7FD4";
-  const colorAccentRed = "#FF3B5C";
+  const colorTextSecondary = theme === "whoop" ? "#888888" : "#9090A8";
+  const colorBorderSubtle = theme === "whoop" ? "rgba(255,255,255,0.04)" : "rgba(124,109,250,0.08)";
+  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
+  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
+  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
+  const colorChartSleep = theme === "whoop" ? "#00D4FF" : "#38BDF8";
+  const colorAccentRed = theme === "whoop" ? "#FF3B5C" : "#F4546A";
 
   const formatXAxis = (tickItem: string) => {
     try {
@@ -54,20 +53,20 @@ export function SleepDebtChart() {
   return (
     <div
       data-testid="sleep-debt-chart"
-      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] min-w-0"
+      className="rounded-2xl border-[0.5px] border-[var(--border-soft)] bg-[var(--bg-card)] p-[20px_24px] min-w-0"
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
           SLEEP DEBT
         </span>
         <div className="flex items-center gap-3">
           <div className="flex gap-3 text-[10px] font-semibold uppercase tracking-wider">
-            <span className="flex items-center gap-1 text-[#3B7FD4]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#3B7FD4]" /> Sleep
+            <span className="flex items-center gap-1 text-[var(--accent-sky)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-sky)]" /> Sleep
             </span>
-            <span className="flex items-center gap-1 text-[#FF3B5C]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FF3B5C]" /> Deficit
+            <span className="flex items-center gap-1 text-[var(--accent-red)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-red)]" /> Deficit
             </span>
           </div>
           <MetricInfo metricKey="sleep_debt" />
@@ -100,7 +99,7 @@ export function SleepDebtChart() {
                   borderColor: colorBorderMedium,
                   borderRadius: "8px",
                 }}
-                labelClassName="text-[#888888] text-xs font-mono"
+                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
                 itemStyle={{ color: colorTextPrimary, fontSize: "12px", fontWeight: "bold" }}
                 formatter={(value: any, name: any) => {
                   if (name === "actual_sleep") return [`${value} hrs`, "Time Slept"];

@@ -5,22 +5,22 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
-import { cssVar } from "@/lib/cssVar";
 
 export function HRZoneChart() {
   const dataMode = useDashboardStore((state) => state.dataMode);
   const settings = useDashboardStore((state) => state.settings);
   const liveData = useDashboardStore((state) => state.liveData);
+  const theme = useDashboardStore((state) => state.theme);
 
-  const colorBgSurface = "#1C1C1C";
-  const colorBorderMedium = "rgba(255,255,255,0.08)";
-  const colorTextPrimary = "#FFFFFF";
+  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
+  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
+  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
 
-  const colorZone1 = "#2A2A2A";
-  const colorZone2 = "#3B7FD4";
-  const colorZone3 = "#00FF87";
-  const colorZone4 = "#FFB800";
-  const colorZone5 = "#FF3B5C";
+  const colorZone1 = theme === "whoop" ? "#333333" : "#44445A";
+  const colorZone2 = theme === "whoop" ? "#00D4FF" : "#2563EB";
+  const colorZone3 = theme === "whoop" ? "#00FF9C" : "#22D3A5";
+  const colorZone4 = theme === "whoop" ? "#FFB800" : "#F59E0B";
+  const colorZone5 = theme === "whoop" ? "#FF3B5C" : "#F4546A";
 
   const heartRateData = liveData?.heart_rate || [];
   const maxHR = settings.maxHR || 185;
@@ -82,11 +82,11 @@ export function HRZoneChart() {
   return (
     <div
       data-testid="hr-zone-chart"
-      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] min-w-0 flex flex-col justify-between h-[260px]"
+      className="rounded-2xl border-[0.5px] border-[var(--border-soft)] bg-[var(--bg-card)] p-[20px_24px] min-w-0 flex flex-col justify-between h-[260px]"
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
           HEART RATE ZONES
         </span>
         <MetricInfo metricKey="heart_rate" />

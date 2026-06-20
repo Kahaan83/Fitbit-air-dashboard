@@ -37,8 +37,8 @@ export default function RootLayout({
       <body
         style={{
           margin: 0,
-          background: "#000",
-          color: "#fff",
+          background: "var(--bg-base)",
+          color: "var(--text-primary)",
           fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',
           WebkitFontSmoothing: "antialiased"
         }}
