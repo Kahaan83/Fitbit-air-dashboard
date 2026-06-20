@@ -1,23 +1,92 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useChartData } from "@/lib/useChartData";
 import { getPastDates, AcuteStressEvent } from "@/lib/mockData";
 import { X, Flame, AlertCircle } from "lucide-react";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
+import { useDashboardStore } from "@/lib/store";
+
+function generateDateRange(startStr: string, endStr: string): string[] {
+  const datesList: string[] = [];
+  const [sYear, sMonth, sDay] = startStr.split("-").map(Number);
+  const [eYear, eMonth, eDay] = endStr.split("-").map(Number);
+  
+  const start = new Date(Date.UTC(sYear, sMonth - 1, sDay));
+  const end = new Date(Date.UTC(eYear, eMonth - 1, eDay));
+  
+  const current = new Date(start);
+  while (current <= end) {
+    const yyyy = current.getUTCFullYear();
+    const mm = String(current.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(current.getUTCDate()).padStart(2, "0");
+    datesList.push(`${yyyy}-${mm}-${dd}`);
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return datesList;
+}
+
+function getLast30DaysLocal(): string[] {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  const baseDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  baseDate.setDate(baseDate.getDate() - 29);
+  
+  const startStr = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, "0")}-${String(baseDate.getDate()).padStart(2, "0")}`;
+  
+  return generateDateRange(startStr, todayStr);
+}
+
+function getDayOfWeek(dateStr: string): number {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day).getDay();
+}
+
+function getDayOfMonth(dateStr: string): number {
+  const parts = dateStr.split("-");
+  return parseInt(parts[2], 10);
+}
+
+function getDayOfWeekName(dateStr: string): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  return d.toLocaleDateString("en-US", { weekday: "short" });
+}
 
 export function AcuteStressHeatmap() {
   const { acuteStress } = useChartData();
-  const dates = getPastDates(30);
+  const { dataMode } = useDashboardStore();
+  const [mounted, setMounted] = useState(false);
+  const [activeDate, setActiveDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const dates = React.useMemo(() => {
+    if (!mounted) return [];
+    if (dataMode === "live") {
+      if (acuteStress && acuteStress.length > 0) {
+        const eventDates = acuteStress.map(e => new Date(e.start).toLocaleDateString("en-CA")).sort();
+        const earliest = eventDates[0];
+        const latest = eventDates[eventDates.length - 1];
+        return generateDateRange(earliest, latest);
+      } else {
+        return getLast30DaysLocal();
+      }
+    }
+    return getPastDates(30);
+  }, [mounted, dataMode, acuteStress]);
 
   // Group events by YYYY-MM-DD
-  const eventsByDate = dates.reduce((acc: Record<string, AcuteStressEvent[]>, date: string) => {
-    acc[date] = acuteStress.filter((e: AcuteStressEvent) => e.date === date);
-    return acc;
-  }, {} as Record<string, AcuteStressEvent[]>);
-
-  const [activeDate, setActiveDate] = useState<string | null>(null);
+  const eventsByDate = React.useMemo(() => {
+    return dates.reduce((acc: Record<string, AcuteStressEvent[]>, date: string) => {
+      acc[date] = acuteStress.filter((e: AcuteStressEvent) => e.date === date);
+      return acc;
+    }, {} as Record<string, AcuteStressEvent[]>);
+  }, [dates, acuteStress]);
 
   // Heatmap styling colors based on count
   const getCellColor = (count: number) => {
@@ -27,12 +96,13 @@ export function AcuteStressHeatmap() {
     return "bg-[var(--accent-red)]/70 text-[var(--text-primary)] hover:bg-[var(--accent-red)]/80 border border-[var(--accent-red)]/40 animate-pulse";
   };
 
-  const getDayOfWeekName = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-US", { weekday: "short" });
-  };
-
   const activeEvents = activeDate ? eventsByDate[activeDate] || [] : [];
+
+  if (!mounted) {
+    return (
+      <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 relative min-w-0 h-64 animate-pulse" />
+    );
+  }
 
   return (
     <div
@@ -78,7 +148,7 @@ export function AcuteStressHeatmap() {
           ))}
 
           {/* Padding for grid alignment: align first date to correct weekday index */}
-          {Array.from({ length: new Date(dates[0]).getDay() }).map((_, i) => (
+          {dates.length > 0 && Array.from({ length: getDayOfWeek(dates[0]) }).map((_, i) => (
             <div key={`pad-${i}`} className="h-11 rounded-lg bg-transparent" />
           ))}
 
@@ -86,7 +156,7 @@ export function AcuteStressHeatmap() {
           {dates.map((date) => {
             const dayEvents = eventsByDate[date] || [];
             const count = dayEvents.length;
-            const labelDate = new Date(date).getUTCDate();
+            const labelDate = getDayOfMonth(date);
             return (
               <button
                 key={date}

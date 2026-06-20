@@ -15,6 +15,18 @@ def _parse_date(date_obj: dict[str, Any]) -> str:
     except Exception:
         return "1970-01-01"
 
+def _parse_rollup_date(pt: dict[str, Any], metric_key: str) -> str:
+    if "date" in pt:
+        return pt["date"]
+    metric_data = pt.get(metric_key, {})
+    if "date" in metric_data:
+        date_obj = metric_data["date"]
+        if isinstance(date_obj, dict):
+            return _parse_date(date_obj)
+        elif isinstance(date_obj, str):
+            return date_obj
+    return "1970-01-01"
+
 class HealthAPIClient:
     def __init__(self, access_token: str, base_url: str = "https://health.googleapis.com/v4"):
         self.access_token = access_token
@@ -31,17 +43,62 @@ class HealthAPIClient:
             response = requests.get(url, headers=headers, params=params, timeout=30)
             if response.status_code == 401:
                 logger.info("Access token expired or unauthorized (401). Triggering token refresh flow...")
-                from auth import get_credentials
-                creds = get_credentials()
+                from auth import get_credentials_sync
+                creds = get_credentials_sync()
                 self.access_token = creds.token
                 headers["Authorization"] = f"Bearer {self.access_token}"
                 response = requests.get(url, headers=headers, params=params, timeout=30)
             
+            if response.status_code == 400:
+                try:
+                    err_json = response.json()
+                    err_msg = err_json.get("error", {}).get("message", response.text)
+                except Exception:
+                    err_msg = response.text
+                logger.error(f"Bad Request (400) for {endpoint}. Response body: {response.text}")
+                raise ValueError(f"Google Health API Bad Request: {err_msg}")
+
             if response.status_code != 200:
                 logger.error(f"HTTP error {response.status_code} for {endpoint}: {response.text[:300]}")
                 return None
                 
             return response
+        except ValueError as ve:
+            raise ve
+        except Exception as e:
+            logger.error(f"Request to {endpoint} failed: {e}")
+            return None
+
+    async def _post(self, endpoint: str, body: dict) -> dict | None:
+        if endpoint == "dailyRollUp":
+            if "/v4" in self.base_url:
+                base = self.base_url.replace("/v4", "/v1")
+            else:
+                base = self.base_url
+            url = f"{base}/users/me/dailyRollUp"
+        else:
+            url = f"{self.base_url}/{endpoint}"
+
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        try:
+            response = requests.post(url, headers=headers, json=body, timeout=30)
+            if response.status_code == 401:
+                logger.info("Access token expired or unauthorized (401). Triggering token refresh flow...")
+                from auth import get_credentials_sync
+                creds = get_credentials_sync()
+                self.access_token = creds.token
+                headers["Authorization"] = f"Bearer {self.access_token}"
+                response = requests.post(url, headers=headers, json=body, timeout=30)
+            
+            if response.status_code != 200:
+                logger.error(f"HTTP error {response.status_code} for {endpoint}: {response.text[:300]}")
+                return None
+                
+            return response.json()
         except Exception as e:
             logger.error(f"Request to {endpoint} failed: {e}")
             return None
@@ -53,15 +110,23 @@ class HealthAPIClient:
         end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
         filter_expr = f"heart_rate.sample_time.physical_time >= \"{start_time}\" AND heart_rate.sample_time.physical_time < \"{end_time}\""
         
-        response = self._get("users/me/dataTypes/heart-rate/dataPoints", {"filter": filter_expr, "pageSize": 10000})
-        if not response:
-            return []
-            
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
+        all_points = []
+        page_token = None
+        while True:
+            params = {"filter": filter_expr, "pageSize": 10000}
+            if page_token:
+                params["pageToken"] = page_token
+            response = self._get("users/me/dataTypes/heart-rate/dataPoints", params)
+            if response is None:
+                break
+            data = response.json()
+            all_points.extend(data.get("dataPoints", []))
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+
         normalized = []
-        for pt in points:
+        for pt in all_points:
             hr_data = pt.get("heartRate", {})
             ts = hr_data.get("sampleTime", {}).get("physicalTime")
             val = hr_data.get("beatsPerMinute")
@@ -81,15 +146,23 @@ class HealthAPIClient:
         end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
         filter_expr = f"heart_rate_variability.sample_time.physical_time >= \"{start_time}\" AND heart_rate_variability.sample_time.physical_time < \"{end_time}\""
         
-        response = self._get("users/me/dataTypes/heart-rate-variability/dataPoints", {"filter": filter_expr, "pageSize": 10000})
-        if not response:
-            return []
-            
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
+        all_points = []
+        page_token = None
+        while True:
+            params = {"filter": filter_expr, "pageSize": 10000}
+            if page_token:
+                params["pageToken"] = page_token
+            response = self._get("users/me/dataTypes/heart-rate-variability/dataPoints", params)
+            if response is None:
+                break
+            data = response.json()
+            all_points.extend(data.get("dataPoints", []))
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+
         normalized = []
-        for pt in points:
+        for pt in all_points:
             hrv_data = pt.get("heartRateVariability", {})
             ts = hrv_data.get("sampleTime", {}).get("physicalTime")
             val = hrv_data.get("rootMeanSquareOfSuccessiveDifferencesMilliseconds")
@@ -115,17 +188,25 @@ class HealthAPIClient:
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
         next_day_dt = end_date_dt + timedelta(days=1)
         end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
-        filter_expr = f"oxygen_saturation.sample_time.sleep_time >= \"{start_time}\" AND oxygen_saturation.sample_time.sleep_time < \"{end_time}\""
+        filter_expr = f"oxygen_saturation.sample_time.physical_time >= \"{start_time}\" AND oxygen_saturation.sample_time.physical_time < \"{end_time}\""
         
-        response = self._get("users/me/dataTypes/oxygen-saturation/dataPoints", {"filter": filter_expr, "pageSize": 10000})
-        if not response:
-            return []
-            
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
+        all_points = []
+        page_token = None
+        while True:
+            params = {"filter": filter_expr, "pageSize": 10000}
+            if page_token:
+                params["pageToken"] = page_token
+            response = self._get("users/me/dataTypes/oxygen-saturation/dataPoints", params)
+            if response is None:
+                break
+            data = response.json()
+            all_points.extend(data.get("dataPoints", []))
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+
         normalized = []
-        for pt in points:
+        for pt in all_points:
             spo2_data = pt.get("oxygenSaturation", {})
             sample_time = spo2_data.get("sampleTime", {})
             ts = sample_time.get("sleepTime") or sample_time.get("physicalTime")
@@ -145,11 +226,11 @@ class HealthAPIClient:
         return normalized
 
     def get_stress(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        start_time = f"{start_date}T00:00:00Z"
+        start_time = f"{start_date}T00:00:00"
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
         next_day_dt = end_date_dt + timedelta(days=1)
-        end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
-        filter_expr = f"steps.interval.start_time >= \"{start_time}\" AND steps.interval.start_time < \"{end_time}\""
+        end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00"
+        filter_expr = f"steps.interval.civil_start_time >= \"{start_time}\" AND steps.interval.civil_start_time < \"{end_time}\""
         
         response = self._get("users/me/dataTypes/steps/dataPoints", {"filter": filter_expr, "pageSize": 10000})
         if not response:
@@ -173,21 +254,29 @@ class HealthAPIClient:
         return normalized
 
     def get_steps(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        start_time = f"{start_date}T00:00:00Z"
+        start_time = f"{start_date}T00:00:00"
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
         next_day_dt = end_date_dt + timedelta(days=1)
-        end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
-        filter_expr = f"steps.interval.start_time >= \"{start_time}\" AND steps.interval.start_time < \"{end_time}\""
+        end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00"
+        filter_expr = f"steps.interval.civil_start_time >= \"{start_time}\" AND steps.interval.civil_start_time < \"{end_time}\""
         
-        response = self._get("users/me/dataTypes/steps/dataPoints", {"filter": filter_expr, "pageSize": 10000})
-        if not response:
-            return []
-            
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
+        all_points = []
+        page_token = None
+        while True:
+            params = {"filter": filter_expr, "pageSize": 10000}
+            if page_token:
+                params["pageToken"] = page_token
+            response = self._get("users/me/dataTypes/steps/dataPoints", params)
+            if response is None:
+                break
+            data = response.json()
+            all_points.extend(data.get("dataPoints", []))
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+
         normalized = []
-        for pt in points:
+        for pt in all_points:
             steps_data = pt.get("steps", {})
             ts = steps_data.get("interval", {}).get("startTime")
             val = steps_data.get("count")
@@ -200,130 +289,136 @@ class HealthAPIClient:
         logger.info(f"get_steps: {len(normalized)} points returned.")
         return normalized
 
-    def get_daily_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-heart-rate-variability/dataPoints", {"pageSize": 1000})
-        if not response:
+    async def get_daily_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        body = {
+            "dataTypeName": ["daily-heart-rate-variability"],
+            "startTime": f"{start_date}T00:00:00+00:00",
+            "endTime": f"{end_date}T23:59:59+00:00"
+        }
+        res = await self._post("dailyRollUp", body)
+        if not res:
             return []
             
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
+        points = res.get("rollupDataPoints", [])
         normalized = []
         for pt in points:
+            date_str = _parse_rollup_date(pt, "dailyHeartRateVariability")
             hrv_data = pt.get("dailyHeartRateVariability", {})
-            date_str = _parse_date(hrv_data.get("date", {}))
-            
-            if start_date <= date_str <= end_date:
-                val = hrv_data.get("averageHeartRateVariabilityMilliseconds")
-                if val is not None:
-                    normalized.append({
-                        "timestamp": date_str,
-                        "value": float(val),
-                        "data_type": "DAILY_HEART_RATE_VARIABILITY"
-                    })
+            val = hrv_data.get("averageHeartRateVariabilityMilliseconds")
+            if val is not None:
+                normalized.append({
+                    "timestamp": date_str,
+                    "value": float(val),
+                    "data_type": "DAILY_HEART_RATE_VARIABILITY"
+                })
         normalized.sort(key=lambda x: x["timestamp"])
         logger.info(f"get_daily_hrv: {len(normalized)} records returned.")
         return normalized
 
-    def get_daily_spo2(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-oxygen-saturation/dataPoints", {"pageSize": 1000})
-        if not response:
+    async def get_daily_spo2(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        body = {
+            "dataTypeName": ["daily-oxygen-saturation"],
+            "startTime": f"{start_date}T00:00:00+00:00",
+            "endTime": f"{end_date}T23:59:59+00:00"
+        }
+        res = await self._post("dailyRollUp", body)
+        if not res:
             return []
             
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
+        points = res.get("rollupDataPoints", [])
         normalized = []
         for pt in points:
+            date_str = _parse_rollup_date(pt, "dailyOxygenSaturation")
             spo2_data = pt.get("dailyOxygenSaturation", {})
-            date_str = _parse_date(spo2_data.get("date", {}))
-            
-            if start_date <= date_str <= end_date:
-                val = spo2_data.get("averagePercentage")
-                if val is not None:
-                    normalized.append({
-                        "timestamp": date_str,
-                        "value": float(val),
-                        "data_type": "DAILY_OXYGEN_SATURATION"
-                    })
+            val = spo2_data.get("averagePercentage")
+            if val is not None:
+                normalized.append({
+                    "timestamp": date_str,
+                    "value": float(val),
+                    "data_type": "DAILY_OXYGEN_SATURATION"
+                })
         normalized.sort(key=lambda x: x["timestamp"])
         logger.info(f"get_daily_spo2: {len(normalized)} records returned.")
         return normalized
 
-    def get_daily_resting_hr(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-resting-heart-rate/dataPoints", {"pageSize": 1000})
-        if not response:
+    async def get_daily_resting_hr(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        body = {
+            "dataTypeName": ["daily-resting-heart-rate"],
+            "startTime": f"{start_date}T00:00:00+00:00",
+            "endTime": f"{end_date}T23:59:59+00:00"
+        }
+        res = await self._post("dailyRollUp", body)
+        if not res:
             return []
             
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
+        points = res.get("rollupDataPoints", [])
         normalized = []
         for pt in points:
+            date_str = _parse_rollup_date(pt, "dailyRestingHeartRate")
             rhr_data = pt.get("dailyRestingHeartRate", {})
-            date_str = _parse_date(rhr_data.get("date", {}))
-            
-            if start_date <= date_str <= end_date:
-                val = rhr_data.get("beatsPerMinute")
-                if val is not None:
-                    normalized.append({
-                        "timestamp": date_str,
-                        "value": float(val),
-                        "data_type": "DAILY_RESTING_HEART_RATE"
-                    })
+            val = rhr_data.get("beatsPerMinute")
+            if val is not None:
+                normalized.append({
+                    "timestamp": date_str,
+                    "value": float(val),
+                    "data_type": "DAILY_RESTING_HEART_RATE"
+                })
         normalized.sort(key=lambda x: x["timestamp"])
         logger.info(f"get_daily_resting_hr: {len(normalized)} records returned.")
         return normalized
 
-    def get_temperature(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints", {"pageSize": 1000})
-        if not response:
+    async def get_temperature(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        body = {
+            "dataTypeName": ["daily-sleep-temperature-derivations"],
+            "startTime": f"{start_date}T00:00:00+00:00",
+            "endTime": f"{end_date}T23:59:59+00:00"
+        }
+        res = await self._post("dailyRollUp", body)
+        if not res:
             return []
             
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
+        points = res.get("rollupDataPoints", [])
         normalized = []
         for pt in points:
+            date_str = _parse_rollup_date(pt, "dailySleepTemperatureDerivations")
             temp_data = pt.get("dailySleepTemperatureDerivations", {})
-            date_str = _parse_date(temp_data.get("date", {}))
-            
-            if start_date <= date_str <= end_date:
-                val = temp_data.get("nightlyTemperatureCelsius")
-                if val is not None:
-                    normalized.append({
-                        "timestamp": date_str,
-                        "value": float(val),
-                        "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"
-                    })
+            val = temp_data.get("nightlyTemperatureCelsius")
+            if val is not None:
+                normalized.append({
+                    "timestamp": date_str,
+                    "value": float(val),
+                    "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"
+                })
         normalized.sort(key=lambda x: x["timestamp"])
         logger.info(f"get_temperature: {len(normalized)} records returned.")
         return normalized
 
-    def get_sleep_temp(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints", {"pageSize": 1000})
-        if not response:
+    async def get_sleep_temp(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        body = {
+            "dataTypeName": ["daily-sleep-temperature-derivations"],
+            "startTime": f"{start_date}T00:00:00+00:00",
+            "endTime": f"{end_date}T23:59:59+00:00"
+        }
+        res = await self._post("dailyRollUp", body)
+        if not res:
             return []
             
-        data = response.json()
-        points = data.get("dataPoints", [])
-        
+        points = res.get("rollupDataPoints", [])
         normalized = []
         for pt in points:
+            date_str = _parse_rollup_date(pt, "dailySleepTemperatureDerivations")
             temp_data = pt.get("dailySleepTemperatureDerivations", {})
-            date_str = _parse_date(temp_data.get("date", {}))
-            
-            if start_date <= date_str <= end_date:
-                val = temp_data.get("nightlyTemperatureCelsius")
-                if val is not None:
-                    normalized.append({
-                        "timestamp": date_str,
-                        "value": float(val),
-                        "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"
-                    })
+            val = temp_data.get("nightlyTemperatureCelsius")
+            if val is not None:
+                normalized.append({
+                    "timestamp": date_str,
+                    "value": float(val),
+                    "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"
+                })
         normalized.sort(key=lambda x: x["timestamp"])
         logger.info(f"get_sleep_temp: {len(normalized)} records returned.")
         return normalized
+
 
     def get_sleep(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
         response = self._get("users/me/dataTypes/sleep/dataPoints", {"pageSize": 1000})
