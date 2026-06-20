@@ -201,7 +201,7 @@ class HealthAPIClient:
         return normalized
 
     def get_daily_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-heart-rate-variability/dataPoints", {"pageSize": 100})
+        response = self._get("users/me/dataTypes/daily-heart-rate-variability/dataPoints", {"pageSize": 1000})
         if not response:
             return []
             
@@ -226,7 +226,7 @@ class HealthAPIClient:
         return normalized
 
     def get_daily_spo2(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-oxygen-saturation/dataPoints", {"pageSize": 100})
+        response = self._get("users/me/dataTypes/daily-oxygen-saturation/dataPoints", {"pageSize": 1000})
         if not response:
             return []
             
@@ -251,7 +251,7 @@ class HealthAPIClient:
         return normalized
 
     def get_daily_resting_hr(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-resting-heart-rate/dataPoints", {"pageSize": 100})
+        response = self._get("users/me/dataTypes/daily-resting-heart-rate/dataPoints", {"pageSize": 1000})
         if not response:
             return []
             
@@ -276,7 +276,7 @@ class HealthAPIClient:
         return normalized
 
     def get_temperature(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints", {"pageSize": 100})
+        response = self._get("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints", {"pageSize": 1000})
         if not response:
             return []
             
@@ -301,7 +301,7 @@ class HealthAPIClient:
         return normalized
 
     def get_sleep_temp(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints", {"pageSize": 100})
+        response = self._get("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints", {"pageSize": 1000})
         if not response:
             return []
             
@@ -326,7 +326,7 @@ class HealthAPIClient:
         return normalized
 
     def get_sleep(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/sleep/dataPoints", {"pageSize": 50})
+        response = self._get("users/me/dataTypes/sleep/dataPoints", {"pageSize": 1000})
         if not response:
             return []
             

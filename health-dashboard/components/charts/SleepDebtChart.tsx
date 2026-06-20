@@ -62,7 +62,7 @@ export function SleepDebtChart() {
   return (
     <div
       data-testid="sleep-debt-chart"
-      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5"
+      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 min-w-0"
     >
       <div className="mb-4 flex items-center justify-between">
         <div>

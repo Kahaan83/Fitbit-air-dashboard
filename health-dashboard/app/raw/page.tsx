@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useDashboardStore } from "@/lib/store";
 import * as mock from "@/lib/mockData";
 import { MetricInfo } from "@/components/MetricInfo";
 import DataStreamsStrip from "@/components/DataStreamsStrip";
+import JSZip from "jszip";
 import {
   Heart,
   Activity,
@@ -15,6 +16,8 @@ import {
   RefreshCw,
   Database,
   Moon,
+  ChevronDown,
+  Download,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -186,9 +189,166 @@ function RawTable({ title, rows, columns }: {
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function RawMetricsPage() {
-  const { dataMode, liveData, lastSync } = useDashboardStore();
+  const {
+    dataMode,
+    liveData,
+    lastSync,
+    settings,
+    syncStartDate,
+    syncEndDate,
+    addToast,
+  } = useDashboardStore();
+
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsExportOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   const isLive = dataMode === "live" && liveData != null;
+
+  const getExportDaysText = () => {
+    if (syncStartDate && syncEndDate) {
+      const start = new Date(syncStartDate);
+      const end = new Date(syncEndDate);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return `${diffDays} days`;
+    }
+    return "30 days";
+  };
+
+  const handleExportJSON = () => {
+    if (!isLive || !liveData) return;
+    setIsExportOpen(false);
+
+    try {
+      const json = JSON.stringify(liveData, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `fitbit-air-export-${dateStr}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      const daysText = getExportDaysText();
+      addToast(`Exported ${daysText} of data`, "success");
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to generate JSON export.", "error");
+    }
+  };
+
+  const convertToCSV = (headers: string[], rows: string[][]) => {
+    const headerRow = headers.join(",");
+    const dataRows = rows.map((row) => row.join(","));
+    return [headerRow, ...dataRows].join("\n");
+  };
+
+  const handleExportCSV = async () => {
+    if (!isLive || !liveData) return;
+    setIsExportOpen(false);
+
+    try {
+      const zip = new JSZip();
+
+      // 1. heart_rate.csv: datetime,bpm,zone
+      const heartRateRows = (liveData.heart_rate || []).map((item: any) => {
+        const bpm = Math.round(item.value || 0);
+        const maxHR = settings.maxHR || 185;
+        const pct = (bpm / maxHR) * 100;
+        let zone = "Zone 1";
+        if (pct > 85) zone = "Zone 5";
+        else if (pct > 70) zone = "Zone 4";
+        else if (pct > 60) zone = "Zone 3";
+        else if (pct > 50) zone = "Zone 2";
+        return [
+          item.timestamp || "",
+          bpm.toString(),
+          zone,
+        ];
+      });
+      const heartRateCSV = convertToCSV(["datetime", "bpm", "zone"], heartRateRows);
+
+      // 2. hrv.csv: date,rmssd
+      const hrvRows = (liveData.hrv || []).map((item: any) => {
+        const date = (item.timestamp || "").split("T")[0];
+        const rmssd = item.value || 0;
+        return [
+          date,
+          rmssd.toString(),
+        ];
+      });
+      const hrvCSV = convertToCSV(["date", "rmssd"], hrvRows);
+
+      // 3. sleep.csv: date,duration_minutes,efficiency,stages
+      const sleepRows = (liveData.sleep || []).map((item: any) => {
+        const date = (item.timestamp || "").split("T")[0];
+        const duration = item.value?.total_sleep_minutes || 0;
+        const efficiency = duration > 0 ? Math.round((duration / (duration + 30)) * 100 * 10) / 10 : 0;
+        const stages = item.value?.stages || {};
+        const stagesStr = `"${JSON.stringify(stages).replace(/"/g, '""')}"`;
+        return [
+          date,
+          duration.toString(),
+          efficiency.toString(),
+          stagesStr,
+        ];
+      });
+      const sleepCSV = convertToCSV(["date", "duration_minutes", "efficiency", "stages"], sleepRows);
+
+      // 4. spo2.csv: datetime,value
+      const spo2Rows = (liveData.spo2 || []).map((item: any) => {
+        return [
+          item.timestamp || "",
+          (item.value || 0).toString(),
+        ];
+      });
+      const spo2CSV = convertToCSV(["datetime", "value"], spo2Rows);
+
+      // 5. stress.csv: start,end,score
+      const stressRows = (liveData.derived?.acute_stress || []).map((item: any) => {
+        const severity = item.severity || "low";
+        const score = severity === "high" ? 3 : severity === "medium" ? 2 : 1;
+        return [
+          item.start || "",
+          item.end || "",
+          score.toString(),
+        ];
+      });
+      const stressCSV = convertToCSV(["start", "end", "score"], stressRows);
+
+      zip.file("heart_rate.csv", heartRateCSV);
+      zip.file("hrv.csv", hrvCSV);
+      zip.file("sleep.csv", sleepCSV);
+      zip.file("spo2.csv", spo2CSV);
+      zip.file("stress.csv", stressCSV);
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `fitbit-air-export-${dateStr}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      const daysText = getExportDaysText();
+      addToast(`Exported ${daysText} of data`, "success");
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to generate CSV ZIP export.", "error");
+    }
+  };
 
   // ── Derive numeric values from live or mock data ─────────────────────────────
   const heartRateArr: any[] = isLive ? (liveData.heart_rate || []) : [];
@@ -274,13 +434,55 @@ export default function RawMetricsPage() {
           <h1 className="text-xl font-semibold tracking-normal text-[var(--text-primary)]">Raw Metrics</h1>
           <p className="text-[var(--text-secondary)] text-[13px] mt-1">All data streams from Google Health API</p>
         </div>
-        <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold border self-start md:self-auto ${
-          isLive
-            ? "bg-[var(--accent-green)]/10 border-[var(--accent-green)]/30 text-[var(--accent-green)]"
-            : "bg-[var(--bg-card)]/80 border-[var(--border-soft)] text-[var(--text-secondary)]"
-        }`}>
-          <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${isLive ? "bg-[var(--accent-green)]" : "bg-[var(--text-tertiary)]"}`} />
-          {isLive ? `Live · Synced ${lastSync ? new Date(lastSync).toLocaleTimeString() : "—"}` : "Sample Data Mode"}
+        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+          {/* Export Dropdown Button */}
+          <div ref={dropdownRef} className="relative inline-block text-left">
+            <div title={!isLive ? "Switch to live data to export." : undefined}>
+              <button
+                type="button"
+                onClick={() => setIsExportOpen(!isExportOpen)}
+                disabled={!isLive}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold tracking-wide transition-all uppercase shadow-md select-none focus:outline-none cursor-pointer ${
+                  isLive
+                    ? "border-[var(--accent-primary)]/45 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/20 shadow-[0_0_8px_-2px_rgba(124,109,250,0.2)]"
+                    : "border-[var(--border-medium)] bg-[var(--bg-surface)] text-[var(--text-secondary)] cursor-not-allowed opacity-50"
+                }`}
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Export</span>
+                <ChevronDown className={`h-3 w-3 transition-transform ${isExportOpen ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+
+            {isExportOpen && isLive && (
+              <div className="absolute right-0 mt-2 w-36 origin-top-right rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-2xl z-30 py-1 animate-fadeIn">
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="flex w-full items-center px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors text-left cursor-pointer"
+                >
+                  Download CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportJSON}
+                  className="flex w-full items-center px-4 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] transition-colors text-left cursor-pointer"
+                >
+                  Download JSON
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Sync Status Badge */}
+          <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold border ${
+            isLive
+              ? "bg-[var(--accent-green)]/10 border-[var(--accent-green)]/30 text-[var(--accent-green)]"
+              : "bg-[var(--bg-card)]/80 border-[var(--border-soft)] text-[var(--text-secondary)]"
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${isLive ? "bg-[var(--accent-green)]" : "bg-[var(--text-tertiary)]"}`} />
+            {isLive ? `Live · Synced ${lastSync ? new Date(lastSync).toLocaleTimeString() : "—"}` : "Sample Data Mode"}
+          </div>
         </div>
       </div>
 
@@ -380,7 +582,7 @@ export default function RawMetricsPage() {
             <Activity className="h-4 w-4 text-[var(--accent-primary)]" />
             <h2 className="font-semibold text-[var(--text-primary)] text-sm">Sleep Sessions</h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {[
               {
                 label: "Total Sleep",

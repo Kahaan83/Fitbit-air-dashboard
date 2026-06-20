@@ -40,7 +40,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col bg-[var(--bg-base)] text-[var(--text-primary)] bg-radial-glow font-sans">
       <ToastContainer />
       <Header onOpenSettings={() => setIsSettingsOpen(true)} />
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 md:py-8">
         {children}
       </main>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

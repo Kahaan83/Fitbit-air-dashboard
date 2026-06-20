@@ -52,22 +52,28 @@ export function useChartData() {
     value: typeof d.value === "number" ? d.value : parseFloat(d.value),
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-  // 4. Sleep Debt: Already computed on backend
-  const sleepDebtMapped = (liveData.derived?.sleep_debt || []).map((d: any) => ({
+  // 4. Sleep Debt: Already computed on backend (safely handling list or single value)
+  const sleepDebtRaw = liveData.derived?.sleep_debt;
+  const sleepDebtList = Array.isArray(sleepDebtRaw) ? sleepDebtRaw : [];
+  const sleepDebtMapped = sleepDebtList.map((d: any) => ({
     date: d.date,
     actual_hours: d.actual_hours,
     target_hours: d.target_hours,
     debt_hours: d.debt_hours,
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-  // 5. VO2 Max: Already computed on backend
-  const vo2MaxMapped = (liveData.derived?.vo2_max || []).map((d: any) => ({
+  // 5. VO2 Max: Already computed on backend (safely handling list or single value)
+  const vo2MaxRaw = liveData.derived?.vo2_max;
+  const vo2MaxList = Array.isArray(vo2MaxRaw) ? vo2MaxRaw : [];
+  const vo2MaxMapped = vo2MaxList.map((d: any) => ({
     date: d.date,
     vo2_max: d.vo2_max,
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-  // 6. Acute Stress Events: Already computed on backend
-  const stressMapped = (liveData.derived?.acute_stress || []).map((d: any, idx: number) => ({
+  // 6. Acute Stress Events: Already computed on backend (safely handling list fallback)
+  const stressRaw = liveData.derived?.acute_stress;
+  const stressList = Array.isArray(stressRaw) ? stressRaw : [];
+  const stressMapped = stressList.map((d: any, idx: number) => ({
     id: `live-stress-${idx}`,
     start: d.start,
     end: d.end,
@@ -133,7 +139,7 @@ export function useChartData() {
   const recoveryScore = Math.round(Math.max(0, Math.min(100, (latestHRV / avg30HRV) * 50 + 25)));
 
   // 3. peakHRToday: max heart rate from today's live readings
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayStr = new Date().toISOString().slice(0, 10);
   const rawHR = liveData.heart_rate || [];
   const todayHR = rawHR
     .filter((d: any) => (d.timestamp || "").startsWith(todayStr))

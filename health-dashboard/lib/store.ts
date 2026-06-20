@@ -30,6 +30,10 @@ interface DashboardState {
   removeToast: (id: string) => void;
   theme: "premium" | "whoop";
   setTheme: (theme: "premium" | "whoop") => void;
+  syncStartDate: string;
+  setSyncStartDate: (date: string) => void;
+  syncEndDate: string;
+  setSyncEndDate: (date: string) => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -80,4 +84,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     }
     set({ theme: t });
   },
+  syncStartDate: "",
+  setSyncStartDate: (date) => set({ syncStartDate: date }),
+  syncEndDate: "",
+  setSyncEndDate: (date) => set({ syncEndDate: date }),
 }));

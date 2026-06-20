@@ -37,7 +37,7 @@ export function AcuteStressHeatmap() {
   return (
     <div
       data-testid="stress-heatmap"
-      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 relative"
+      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 relative min-w-0"
     >
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
