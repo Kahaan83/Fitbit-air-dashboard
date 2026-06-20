@@ -242,9 +242,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           aria-hidden="true"
         />
 
-        <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-          <div className="pointer-events-auto w-screen max-w-md transform transition-all duration-300 ease-in-out">
-            <div className="flex h-full flex-col overflow-y-scroll border-l border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-2xl">
+        <div className="pointer-events-none fixed inset-0 md:inset-y-0 md:right-0 md:left-auto flex max-w-full pl-0 md:pl-10">
+          <div className="pointer-events-auto w-full md:w-screen max-w-none md:max-w-md transform transition-all duration-300 ease-in-out">
+            <div className="flex h-full flex-col overflow-y-scroll border-0 md:border-l border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-2xl">
               {/* Header */}
               <div className="px-6 py-4 border-b border-[var(--border-subtle)]">
                 <div className="flex items-center justify-between">
@@ -317,7 +317,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className="text-[var(--text-secondary)] text-[11px] font-medium uppercase tracking-widest border-b border-[var(--border-subtle)] pb-1">
                     Appearance
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Premium Dark Theme Card */}
                     <button
                       type="button"
@@ -396,7 +396,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     Physiological Baselines
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[var(--text-secondary)] font-medium mb-1.5">Age</label>
                       <input
@@ -418,7 +418,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[var(--text-secondary)] font-medium mb-1.5">Resting HR (bpm)</label>
                       <input

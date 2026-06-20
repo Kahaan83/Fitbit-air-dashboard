@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
 import ThemeInitializer from "@/components/ThemeInitializer";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,22 +31,21 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <head>
-        <script
+      <head />
+      <body className="min-h-full flex flex-col bg-[var(--bg-base)]" suppressHydrationWarning>
+        <Script
+          id="theme-init-script"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              (function() {
-                try {
-                  var saved = localStorage.getItem('theme');
-                  var theme = saved === 'whoop' ? 'whoop' : 'premium';
-                  document.documentElement.setAttribute('data-theme', theme);
-                } catch (e) {}
-              })();
+              try {
+                var saved = localStorage.getItem('theme');
+                var theme = saved === 'whoop' ? 'whoop' : 'premium';
+                document.documentElement.setAttribute('data-theme', theme);
+              } catch (e) {}
             `,
           }}
         />
-      </head>
-      <body className="min-h-full flex flex-col bg-[var(--bg-base)]" suppressHydrationWarning>
         <ThemeInitializer />
         <ClientLayout>{children}</ClientLayout>
       </body>

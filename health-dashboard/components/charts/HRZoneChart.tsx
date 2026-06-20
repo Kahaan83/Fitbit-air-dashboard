@@ -87,7 +87,7 @@ export function HRZoneChart() {
   return (
     <div
       data-testid="hr-zone-chart"
-      className="glow-card rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-6 backdrop-blur-sm shadow-xl flex flex-col justify-between"
+      className="glow-card rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-6 backdrop-blur-sm shadow-xl flex flex-col justify-between min-w-0"
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
@@ -147,35 +147,35 @@ export function HRZoneChart() {
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs font-semibold">
             <div className="flex flex-col p-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] items-center text-center">
               <span className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorZone1 }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--chart-zone1)" }} />
                 Zone 1 (Rest)
               </span>
               <span className="text-[var(--text-primary)] mt-0.5 font-bold font-mono">{z1}%</span>
             </div>
             <div className="flex flex-col p-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] items-center text-center">
               <span className="flex items-center gap-1.5 text-[var(--chart-zone2)]">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorZone2 }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--chart-zone2)" }} />
                 Zone 2 (Fat Burn)
               </span>
               <span className="text-[var(--text-primary)] mt-0.5 font-bold font-mono">{z2}%</span>
             </div>
             <div className="flex flex-col p-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] items-center text-center">
               <span className="flex items-center gap-1.5 text-[var(--chart-zone3)]">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorZone3 }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--chart-zone3)" }} />
                 Zone 3 (Aerobic)
               </span>
               <span className="text-[var(--text-primary)] mt-0.5 font-bold font-mono">{z3}%</span>
             </div>
             <div className="flex flex-col p-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] items-center text-center">
               <span className="flex items-center gap-1.5 text-[var(--chart-zone4)]">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorZone4 }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--chart-zone4)" }} />
                 Zone 4 (Threshold)
               </span>
               <span className="text-[var(--text-primary)] mt-0.5 font-bold font-mono">{z4}%</span>
             </div>
             <div className="flex flex-col p-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-subtle)] items-center text-center col-span-2 sm:col-span-1">
               <span className="flex items-center gap-1.5 text-[var(--chart-zone5)]">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorZone5 }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--chart-zone5)" }} />
                 Zone 5 (Max)
               </span>
               <span className="text-[var(--text-primary)] mt-0.5 font-bold font-mono">{z5}%</span>

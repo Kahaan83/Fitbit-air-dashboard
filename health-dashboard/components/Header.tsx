@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
 import { Activity, Heart, Moon, Settings as SettingsIcon, Database, RefreshCw, Palette } from "lucide-react";
+import DateRangePicker from "./DateRangePicker";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -15,6 +16,11 @@ export function Header({ onOpenSettings }: HeaderProps) {
   const { dataMode, setDataMode, lastSync, setLiveData, setLastSync, addToast, liveData, theme, setTheme } = useDashboardStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleRefresh = async () => {
     if (dataMode !== "live") return;
@@ -75,7 +81,8 @@ export function Header({ onOpenSettings }: HeaderProps) {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[var(--border-soft)] bg-[var(--bg-base)]/70 backdrop-blur-md">
+    <>
+      <header className="sticky top-0 z-40 w-full border-b border-[var(--border-soft)] bg-[var(--bg-base)]/70 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-14 items-stretch justify-between gap-4">
           {/* Logo */}
@@ -89,7 +96,7 @@ export function Header({ onOpenSettings }: HeaderProps) {
           </div>
 
           {/* Navigation Tabs */}
-          <nav className="flex h-full items-stretch gap-1 sm:gap-2">
+          <nav className="hidden md:flex h-full items-stretch gap-1 sm:gap-2">
             {navigation.map((tab) => {
               const Icon = tab.icon;
               const isActive = pathname === tab.href;
@@ -115,19 +122,39 @@ export function Header({ onOpenSettings }: HeaderProps) {
             >
               <SettingsIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Settings</span>
-              <span className="ml-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--border-medium)] text-[var(--accent-primary)] border border-[var(--border-soft)] leading-none select-none">
-                {theme === "whoop" ? "Whoop" : "Premium"}
-              </span>
+              {mounted && (
+                <span className="ml-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--border-medium)] text-[var(--accent-primary)] border border-[var(--border-soft)] leading-none select-none">
+                  {theme === "whoop" ? "Whoop" : "Premium"}
+                </span>
+              )}
             </button>
           </nav>
 
           {/* Status Badge & Sync Info */}
           <div className="flex items-center gap-3">
+            {/* Date Range Picker (Desktop) */}
+            <div className="hidden lg:block">
+              <DateRangePicker />
+            </div>
+            {/* Mobile Settings Icon */}
+            <button
+              onClick={onOpenSettings}
+              className="md:hidden flex items-center justify-center rounded-lg p-2 text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)] transition-colors focus:outline-none"
+              title="Open Settings"
+            >
+              <SettingsIcon className="h-4 w-4" />
+              {mounted && (
+                <span className="ml-1 text-[8px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--border-medium)] text-[var(--accent-primary)] border border-[var(--border-soft)] leading-none select-none">
+                  {theme === "whoop" ? "Whoop" : "Premium"}
+                </span>
+              )}
+            </button>
+
             {/* Theme Toggle */}
             <button
               onClick={() => setTheme(theme === "premium" ? "whoop" : "premium")}
               className="flex items-center justify-center rounded-lg p-2 text-[var(--text-secondary)] hover:bg-white/10 hover:text-[var(--text-primary)] transition-colors focus:outline-none"
-              title={`Switch to ${theme === "premium" ? "Whoop" : "Premium"} Theme`}
+              title={mounted ? `Switch to ${theme === "premium" ? "Whoop" : "Premium"} Theme` : "Switch Theme"}
             >
               <Palette className="h-4 w-4" />
             </button>
@@ -185,8 +212,36 @@ export function Header({ onOpenSettings }: HeaderProps) {
           </div>
         </div>
       </div>
+      
+      {/* Date Range Picker (Mobile/Tablet Sub-row) */}
+      <div className="lg:hidden border-t border-[var(--border-subtle)] bg-[var(--bg-card)]/30 px-4 py-2 flex justify-center items-center">
+        <DateRangePicker />
+      </div>
     </header>
-  );
+
+    {/* Bottom Navigation for Mobile */}
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border-soft)] bg-[var(--bg-base)]/90 backdrop-blur-md flex justify-around items-center h-16 px-2 shadow-2xl">
+      {navigation.map((tab) => {
+        const Icon = tab.icon;
+        const isActive = pathname === tab.href;
+        return (
+          <Link
+            key={tab.name}
+            href={tab.href}
+            className={`flex flex-col items-center justify-center flex-1 py-1 gap-1 text-[10px] font-medium transition-all ${
+              isActive
+                ? "text-[var(--accent-primary)] font-bold"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <Icon className="h-5 w-5" />
+            <span>{tab.name}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  </>
+);
 }
 
 export default Header;

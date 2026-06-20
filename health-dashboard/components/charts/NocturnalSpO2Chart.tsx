@@ -65,7 +65,7 @@ export function NocturnalSpO2Chart() {
   return (
     <div
       data-testid="spo2-chart"
-      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5"
+      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 min-w-0"
     >
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
