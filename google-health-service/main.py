@@ -558,5 +558,58 @@ async def root() -> dict[str, str]:
 
 @app.get("/health", include_in_schema=False)
 async def health() -> dict[str, str]:
-    return {"status": "healthy"}
+    return {"status": "ok"}
+
+
+@app.get("/api/alerts", summary="Get physiological alert triggers")
+async def get_alerts() -> JSONResponse:
+    """
+    Evaluates cached physiological telemetry against safety thresholds.
+    Thresholds:
+      - SpO2 < 90% (Hypoxemia)
+      - High severity acute stress events
+      - Sleep debt > 3 hours (Significant sleep deprivation)
+    """
+    alerts = []
+    payload = _cache.get("payload")
+    if not payload:
+        return JSONResponse(content=[])
+
+    # Check SpO2
+    spo2_readings = payload.get("spo2", [])
+    for reading in spo2_readings:
+        val = reading.get("value")
+        if val is not None and val < 90.0:
+            alerts.append({
+                "type": "spo2_drop",
+                "message": f"Oxygen saturation dropped below threshold: {val}%",
+                "severity": "high",
+                "timestamp": reading.get("timestamp")
+            })
+
+    # Check High Stress
+    stress_events = payload.get("derived", {}).get("acute_stress", [])
+    for event in stress_events:
+        if event.get("severity") == "high":
+            alerts.append({
+                "type": "high_stress",
+                "message": f"High severity acute stress event detected (Peak HR: {event.get('hr_peak')} bpm)",
+                "severity": "medium",
+                "timestamp": event.get("start")
+            })
+
+    # Check Sleep Debt
+    sleep_debt_series = payload.get("derived", {}).get("sleep_debt", [])
+    if sleep_debt_series:
+        latest = sleep_debt_series[-1]
+        debt = latest.get("debt_hours", 0.0)
+        if debt > 3.0:
+            alerts.append({
+                "type": "sleep_deprivation",
+                "message": f"Significant sleep debt accumulated: {debt} hours",
+                "severity": "low",
+                "date": latest.get("date")
+            })
+
+    return JSONResponse(content=alerts)
 

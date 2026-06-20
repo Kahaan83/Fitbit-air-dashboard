@@ -1,4 +1,9 @@
+import os
+os.environ["GCP_PROJECT_ID"] = "mock-project"
+os.environ["ALLOWED_ORIGIN"] = "http://localhost:3000"
+
 import pytest
+from unittest.mock import AsyncMock, patch
 import numpy as np
 
 # ─── HRV Fixtures ──────────────────────────────────────────────────────────
@@ -107,3 +112,29 @@ def sleep_mixed():
         {"timestamp": "2026-06-20T00:00:00Z", "value": {"total_sleep_minutes": 540}},  # 9h (debt -1h)
         {"timestamp": "2026-06-21T00:00:00Z", "value": {"total_sleep_minutes": 420}},  # 7h (debt +1h)
     ]
+
+
+@pytest.fixture
+def mock_client():
+    from unittest.mock import MagicMock
+    with patch("extractor.HealthAPIClient") as MockClient:
+        instance = MockClient.return_value
+        instance.get_heart_rate = MagicMock(return_value=[{"timestamp": "2026-01-15T08:00:00Z", "value": 72}])
+        instance.get_intraday_hrv = MagicMock(return_value=[{"timestamp": "2026-01-15T02:00:00Z", "value": 45.2}])
+        instance.get_hrv = MagicMock(return_value=[{"timestamp": "2026-01-15T02:00:00Z", "value": 45.2}])
+        instance.get_spo2 = MagicMock(return_value=[])
+        instance.get_sleep = MagicMock(return_value=[])
+        instance.get_steps = MagicMock(return_value=[])
+        instance.get_daily_hrv = AsyncMock(return_value=[])
+        instance.get_daily_spo2 = AsyncMock(return_value=[])
+        instance.get_daily_resting_hr = AsyncMock(return_value=[])
+        instance.get_sleep_temp = AsyncMock(return_value=[])
+        yield instance
+
+
+@pytest.fixture
+def test_client():
+    from fastapi.testclient import TestClient
+    from main import app
+    return TestClient(app)
+

@@ -1,9 +1,15 @@
 import { useDashboardStore } from "./store";
 import * as mock from "./mockData";
 import { useMemo } from "react";
+import {
+  calculateRecoveryScore,
+  buildSleepDebtSeries,
+  mapAcuteStress,
+  buildSpo2Nocturnal
+} from "./transforms";
 
 export function useChartData() {
-  const { dataMode, liveData } = useDashboardStore();
+  const { dataMode, liveData, settings } = useDashboardStore();
 
   if (dataMode === "sample" || !liveData) {
     return {
@@ -52,15 +58,8 @@ export function useChartData() {
     value: typeof d.value === "number" ? d.value : parseFloat(d.value),
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-  // 4. Sleep Debt: Already computed on backend (safely handling list or single value)
-  const sleepDebtRaw = liveData.derived?.sleep_debt;
-  const sleepDebtList = Array.isArray(sleepDebtRaw) ? sleepDebtRaw : [];
-  const sleepDebtMapped = sleepDebtList.map((d: any) => ({
-    date: d.date,
-    actual_hours: d.actual_hours,
-    target_hours: d.target_hours,
-    debt_hours: d.debt_hours,
-  })).sort((a: any, b: any) => a.date.localeCompare(b.date));
+  // 4. Sleep Debt: dynamically build sleep debt series client-side using transforms
+  const sleepDebtMapped = buildSleepDebtSeries(liveData.sleep || [], settings.targetSleepHours);
 
   // 5. VO2 Max: Already computed on backend (safely handling list or single value)
   const vo2MaxRaw = liveData.derived?.vo2_max;
@@ -70,55 +69,13 @@ export function useChartData() {
     vo2_max: d.vo2_max,
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-  // 6. Acute Stress Events: Already computed on backend (safely handling list fallback)
+  // 6. Acute Stress Events: map using mapAcuteStress and flatten
   const stressRaw = liveData.derived?.acute_stress;
   const stressList = Array.isArray(stressRaw) ? stressRaw : [];
-  const stressMapped = stressList.map((d: any, idx: number) => ({
-    id: `live-stress-${idx}`,
-    start: d.start,
-    end: d.end,
-    hr_peak: d.hr_peak,
-    severity: d.severity,
-    date: new Date(d.start).toLocaleDateString("en-CA"),
-  }));
+  const stressMapped = Object.values(mapAcuteStress(stressList)).flat();
 
-  // 7. Nocturnal SpO2 (Group 5-minute resolution oxygen saturation values by date)
-  // Live data returns raw OXYGEN_SATURATION measurements during sleep/nocturnal hours.
-  const rawSpo2 = liveData.spo2 || [];
-  const spo2Grouped: Record<string, mock.SpO2Reading[]> = {};
-  let isSpO2Fallback = false;
-
-  if (rawSpo2.length > 0) {
-    rawSpo2.forEach((d: any) => {
-      const dateStr = d.timestamp.split("T")[0];
-      const timeStr = d.timestamp.substring(11, 16); // Extract HH:MM
-      if (!spo2Grouped[dateStr]) {
-        spo2Grouped[dateStr] = [];
-      }
-      spo2Grouped[dateStr].push({
-        time: timeStr,
-        value: typeof d.value === "number" ? d.value : parseFloat(d.value),
-      });
-    });
-  } else {
-    // Fall back to daily_spo2 if raw SpO2 is empty
-    const dailySpo2 = liveData.daily_spo2 || [];
-    if (dailySpo2.length > 0) {
-      isSpO2Fallback = true;
-      dailySpo2.forEach((d: any) => {
-        const dateStr = d.timestamp.split("T")[0];
-        spo2Grouped[dateStr] = [{
-          time: "Daily Avg",
-          value: typeof d.value === "number" ? d.value : parseFloat(d.value),
-        }];
-      });
-    }
-  }
-
-  // Ensure each night's readings are chronologically sorted
-  Object.keys(spo2Grouped).forEach((dateKey) => {
-    spo2Grouped[dateKey].sort((a, b) => a.time.localeCompare(b.time));
-  });
+  // 7. Nocturnal SpO2
+  const { spo2Grouped, isSpO2Fallback } = buildSpo2Nocturnal(liveData.spo2 || [], liveData.daily_spo2 || []);
 
   // ── Derived analytics for live mode ─────────────────────────────────────────
 
@@ -130,13 +87,6 @@ export function useChartData() {
   const hrvRolling7 = last7Hrv.length >= 7
     ? Math.round((last7Hrv.reduce((s, d) => s + d.value, 0) / 7) * 10) / 10
     : 0;
-
-  // 2. recoveryScore: clamp((latestHRV / avg30HRV) * 50 + 25, 0, 100)
-  const avg30HRV = hrvFinal.length > 0
-    ? hrvFinal.reduce((s, d) => s + d.value, 0) / hrvFinal.length
-    : 1;
-  const latestHRV = hrvFinal[hrvFinal.length - 1]?.value ?? 0;
-  const recoveryScore = Math.round(Math.max(0, Math.min(100, (latestHRV / avg30HRV) * 50 + 25)));
 
   // 3. peakHRToday: max heart rate from today's live readings
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -152,6 +102,9 @@ export function useChartData() {
   const sleepEfficiency = lastSleepDebt
     ? Math.round((lastSleepDebt.actual_hours / (lastSleepDebt.actual_hours + 0.5)) * 100 * 10) / 10
     : 0;
+
+  // 2. recoveryScore: calculate score incorporating HRV, RHR and sleep efficiency
+  const recoveryScore = calculateRecoveryScore(hrvMapped, settings.restingHR, sleepEfficiency);
 
   // 5. remPct: REM % from most recent live sleep session
   const liveSleep = liveData.sleep || [];
