@@ -3,8 +3,10 @@ import numpy as np
 from derived_metrics import (
     calculate_ans_balance,
     calculate_vo2_max,
+    calculate_vo2_max_series,
     identify_acute_stress,
     calculate_sleep_debt,
+    calculate_sleep_debt_series,
 )
 
 # ─── Tests for calculate_ans_balance ─────────────────────────────────────────
@@ -111,3 +113,46 @@ def test_sleep_debt_mixed(sleep_mixed):
     # Cumulative deficit = +2h + (-1h) + (+1h) = +2h
     debt = calculate_sleep_debt(sleep_mixed, 8.0)
     assert debt == 2.0
+
+
+# ─── Tests for calculate_vo2_max_series ──────────────────────────────────────
+
+def test_vo2_max_series_empty(empty_hr):
+    assert calculate_vo2_max_series(empty_hr, 185) == []
+    assert calculate_vo2_max_series(None, 185) == []
+
+def test_vo2_max_series_valid(daily_resting_hr):
+    results = calculate_vo2_max_series(daily_resting_hr, 185)
+    assert isinstance(results, list)
+    assert len(results) == 2
+    assert results[0]["date"] == "2026-06-19"
+    assert results[0]["vo2_max"] == 47.18
+    assert results[1]["date"] == "2026-06-20"
+    assert results[1]["vo2_max"] == 48.8
+
+
+# ─── Tests for calculate_sleep_debt_series ───────────────────────────────────
+
+def test_sleep_debt_series_empty(empty_sleep):
+    assert calculate_sleep_debt_series(empty_sleep, 8.0) == []
+    assert calculate_sleep_debt_series(None, 8.0) == []
+
+def test_sleep_debt_series_mixed(sleep_mixed):
+    results = calculate_sleep_debt_series(sleep_mixed, 8.0)
+    assert isinstance(results, list)
+    assert len(results) == 3
+    assert results[0]["date"] == "2026-06-19"
+    assert results[0]["actual_hours"] == 6.0
+    assert results[0]["target_hours"] == 8.0
+    assert results[0]["debt_hours"] == 2.0
+    
+    assert results[1]["date"] == "2026-06-20"
+    assert results[1]["actual_hours"] == 9.0
+    assert results[1]["target_hours"] == 8.0
+    assert results[1]["debt_hours"] == -1.0
+    
+    assert results[2]["date"] == "2026-06-21"
+    assert results[2]["actual_hours"] == 7.0
+    assert results[2]["target_hours"] == 8.0
+    assert results[2]["debt_hours"] == 1.0
+

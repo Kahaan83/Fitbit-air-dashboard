@@ -104,7 +104,7 @@ def _create_installed_app_flow() -> InstalledAppFlow:
         client_id = installed_data.get("client_id", "").strip()
         
         # Check env first for client secret and project ID
-        env_client_secret = (os.getenv("FITBIT_CLIENT_SECRET") or os.getenv("GCP_CLIENT_SECRET") or "").strip()
+        env_client_secret = (os.getenv("GCP_CLIENT_SECRET") or "").strip()
         client_secret = installed_data.get("client_secret", "").strip()
         if not client_secret and env_client_secret:
             client_secret = env_client_secret

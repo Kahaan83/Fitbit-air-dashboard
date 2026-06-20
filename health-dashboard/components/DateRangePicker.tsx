@@ -27,6 +27,45 @@ export function DateRangePicker() {
   const [activePreset, setActivePreset] = useState<"7d" | "30d" | "90d" | "custom">("30d");
   const [isSyncing, setIsSyncing] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Validation logic for custom date ranges
+  useEffect(() => {
+    if (!mounted) return;
+    if (activePreset !== "custom") {
+      setValidationError(null);
+      return;
+    }
+    if (!syncStartDate || !syncEndDate) {
+      setValidationError("Start and end dates must not be empty");
+      return;
+    }
+
+    const startDateObj = new Date(syncStartDate + "T00:00:00");
+    const endDateObj = new Date(syncEndDate + "T00:00:00");
+
+    const today = new Date();
+    const todayLocalMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    if (startDateObj > todayLocalMidnight || endDateObj > todayLocalMidnight) {
+      setValidationError("Dates cannot be in the future");
+      return;
+    }
+
+    if (startDateObj > endDateObj) {
+      setValidationError("End date must be after start date");
+      return;
+    }
+
+    const diffTime = Math.abs(endDateObj.getTime() - startDateObj.getTime());
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 90) {
+      setValidationError("Date range cannot exceed 90 days");
+      return;
+    }
+
+    setValidationError(null);
+  }, [syncStartDate, syncEndDate, activePreset, mounted]);
 
   // Initialize dates safely on mount to prevent SSR hydration mismatches
   useEffect(() => {
@@ -128,61 +167,68 @@ export function DateRangePicker() {
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-3 bg-[var(--bg-card)]/50 border border-[var(--border-soft)] rounded-xl p-1.5 text-xs">
-      {/* Preset selection tabs */}
-      <div className="flex bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-lg p-0.5">
-        {(["7d", "30d", "90d", "custom"] as const).map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            onClick={() => handlePresetChange(preset)}
-            className={`px-3 py-1 rounded-md font-semibold transition-all uppercase cursor-pointer ${
-              activePreset === preset
-                ? "bg-[var(--accent-primary)] text-[var(--bg-base)] shadow-sm font-bold"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            {preset}
-          </button>
-        ))}
-      </div>
-
-      {/* Date input boxes for Custom range */}
-      {activePreset === "custom" && (
-        <div className="flex items-center gap-2 animate-fadeIn">
-          <input
-            type="date"
-            value={syncStartDate}
-            onChange={(e) => setSyncStartDate(e.target.value)}
-            disabled={isSyncing}
-            className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-1 text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors disabled:opacity-50 cursor-pointer"
-          />
-          <span className="text-[var(--text-secondary)] font-medium">to</span>
-          <input
-            type="date"
-            value={syncEndDate}
-            onChange={(e) => setSyncEndDate(e.target.value)}
-            disabled={isSyncing}
-            className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-1 text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors disabled:opacity-50 cursor-pointer"
-          />
+    <div className="flex flex-col gap-1 items-end sm:items-start lg:items-end">
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-[var(--bg-card)]/50 border border-[var(--border-soft)] rounded-xl p-1.5 text-xs">
+        {/* Preset selection tabs */}
+        <div className="flex bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-lg p-0.5">
+          {(["7d", "30d", "90d", "custom"] as const).map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => handlePresetChange(preset)}
+              className={`px-3 py-1 rounded-md font-semibold transition-all uppercase cursor-pointer ${
+                activePreset === preset
+                  ? "bg-[var(--accent-primary)] text-[var(--bg-base)] shadow-sm font-bold"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {preset}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Sync Action Button */}
-      <button
-        type="button"
-        onClick={handleSync}
-        disabled={isSyncing}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-semibold tracking-wide transition-all uppercase shadow-md cursor-pointer select-none focus:outline-none ${
-          dataMode === "live"
-            ? "border-[var(--accent-primary)]/45 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/20 shadow-[0_0_8px_-2px_rgba(124,109,250,0.2)]"
-            : "border-[var(--border-medium)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-        } disabled:opacity-50`}
-        title={dataMode === "live" ? "Sync data for range" : "Live data mode required"}
-      >
-        <RefreshCw className={`h-3 w-3 ${isSyncing ? "animate-spin" : ""}`} />
-        <span>{isSyncing ? "Syncing..." : "Sync"}</span>
-      </button>
+        {/* Date input boxes for Custom range */}
+        {activePreset === "custom" && (
+          <div className="flex items-center gap-2 animate-fadeIn">
+            <input
+              type="date"
+              value={syncStartDate}
+              onChange={(e) => setSyncStartDate(e.target.value)}
+              disabled={isSyncing}
+              className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-1 text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors disabled:opacity-50 cursor-pointer"
+            />
+            <span className="text-[var(--text-secondary)] font-medium">to</span>
+            <input
+              type="date"
+              value={syncEndDate}
+              onChange={(e) => setSyncEndDate(e.target.value)}
+              disabled={isSyncing}
+              className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-1 text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors disabled:opacity-50 cursor-pointer"
+            />
+          </div>
+        )}
+
+        {/* Sync Action Button */}
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={isSyncing || !!validationError}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-semibold tracking-wide transition-all uppercase shadow-md cursor-pointer select-none focus:outline-none ${
+            dataMode === "live"
+              ? "border-[var(--accent-primary)]/45 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/20 shadow-[0_0_8px_-2px_rgba(124,109,250,0.2)]"
+              : "border-[var(--border-medium)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          } disabled:opacity-50`}
+          title={dataMode === "live" ? "Sync data for range" : "Live data mode required"}
+        >
+          <RefreshCw className={`h-3 w-3 ${isSyncing ? "animate-spin" : ""}`} />
+          <span>{isSyncing ? "Syncing..." : "Sync"}</span>
+        </button>
+      </div>
+      {activePreset === "custom" && validationError && (
+        <span className="text-red-500 text-[10px] font-semibold pr-2 select-none animate-fadeIn">
+          {validationError}
+        </span>
+      )}
     </div>
   );
 }

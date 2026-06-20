@@ -1,6 +1,7 @@
 "use client";
-
+ 
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Info } from "lucide-react";
 
 // ── Metric Knowledge Base ───────────────────────────────────────────────────────
@@ -242,12 +243,17 @@ interface MetricInfoProps {
 export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
   const def = METRIC_INFO[metricKey];
 
   // Close on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const clickInTrigger = ref.current && ref.current.contains(e.target as Node);
+      const clickInTooltip = tooltipRef.current && tooltipRef.current.contains(e.target as Node);
+      if (!clickInTrigger && !clickInTooltip) {
         setOpen(false);
       }
     }
@@ -255,35 +261,37 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // Elevate parent stacking context when tooltip is open to prevent clipping by other cards
+  // Calculate position when tooltip opens
   useEffect(() => {
-    if (!ref.current) return;
-    
-    let parent = ref.current.parentElement;
-    while (parent) {
-      // Find the closest card container: either a .glow-card or a card-like div
-      if (
-        parent.classList.contains("glow-card") ||
-        parent.classList.contains("rounded-2xl") ||
-        (parent.tagName === "DIV" && (parent.className.includes("border") || parent.className.includes("bg-")))
-      ) {
-        if (open) {
-          parent.style.zIndex = "40";
-          parent.style.position = "relative";
-        } else {
-          parent.style.zIndex = "";
-          parent.style.position = "";
-        }
-        break;
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const tooltipWidth = 320; // Matches w-80 (20rem = 320px)
+      let left = rect.left + window.scrollX;
+      
+      // Prevent horizontal overflow
+      if (rect.left + tooltipWidth > window.innerWidth) {
+        left = rect.right + window.scrollX - tooltipWidth;
       }
-      parent = parent.parentElement;
+      if (left < 0) {
+        left = 8;
+      }
+
+      setPos({
+        top: rect.bottom + window.scrollY + 8,
+        left,
+      });
     }
-    
+  }, [open]);
+
+  // Close tooltip on scroll or resize to prevent floating issues
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close, true);
     return () => {
-      if (parent) {
-        parent.style.zIndex = "";
-        parent.style.position = "";
-      }
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close, true);
     };
   }, [open]);
 
@@ -294,6 +302,7 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
   return (
     <div ref={ref} className="relative inline-flex items-center">
       <button
+        ref={triggerRef}
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
         className={`rounded-full p-0.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors hover:bg-white/10 focus:outline-none`}
         aria-label={`Info about ${def.name}`}
@@ -302,10 +311,11 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
         <Info className={iconSize} />
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
-          className="absolute z-50 right-0 top-6 mt-1 w-80 rounded-2xl border border-[var(--border-medium)] bg-[var(--bg-surface)]/95 backdrop-blur-xl shadow-2xl shadow-black/60 p-5 text-sm"
-          style={{ minWidth: "300px" }}
+          ref={tooltipRef}
+          className="w-80 rounded-2xl border border-[var(--border-medium)] bg-[var(--bg-surface)]/95 backdrop-blur-xl shadow-2xl shadow-black/60 p-5 text-sm"
+          style={{ position: "absolute", top: pos.top, left: pos.left, zIndex: 9999 }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -347,7 +357,8 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
             </div>
             <p className="text-xs text-[var(--accent-sky)]/80 leading-relaxed">{def.tip}</p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -84,6 +84,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [restingHR, setRestingHR] = useState(58);
   const [targetSleepHours, setTargetSleepHours] = useState(8);
   const [loading, setLoading] = useState(false);
+  const [savingBaselines, setSavingBaselines] = useState(false);
+  const [baselinesSaved, setBaselinesSaved] = useState(false);
 
   // Sync state from store when modal opens or settings change
   useEffect(() => {
@@ -98,8 +100,55 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   if (!isOpen) return null;
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveBaselines = async () => {
+    setSavingBaselines(true);
+    try {
+      const res = await fetch("/api/settings/baselines", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          age,
+          max_hr: maxHR,
+          resting_hr: restingHR,
+          target_sleep_hours: targetSleepHours,
+        }),
+      });
+
+      if (!res.ok) {
+        let errMsg = "Failed to save physiological baselines.";
+        try {
+          const errData = await res.json();
+          if (errData && errData.message) {
+            errMsg = errData.message;
+          }
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      // Save to Zustand store settings configuration
+      updateSettings({
+        age,
+        maxHR,
+        restingHR,
+        targetSleepHours,
+      });
+
+      setBaselinesSaved(true);
+      addToast("Physiological baselines saved successfully.", "success");
+      setTimeout(() => {
+        setBaselinesSaved(false);
+      }, 3000);
+    } catch (err: any) {
+      console.error("Save baselines error:", err);
+      addToast(`Could not save baselines: ${err.message}`, "error");
+    } finally {
+      setSavingBaselines(false);
+    }
+  };
+
+  const handleConnectGoogleHealth = async () => {
     setLoading(true);
     useDashboardStore.getState().setIsLoadingLiveData(true);
 
@@ -259,7 +308,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
 
               {/* Form Content */}
-              <form onSubmit={handleSave} className="flex-1 space-y-6 px-6 py-6 text-sm">
+              <div className="flex-1 space-y-6 px-6 py-6 text-sm">
                 {/* Mode Select Section */}
                 <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)]/50 p-4">
                   <div className="flex justify-between items-center">
@@ -438,6 +487,23 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       />
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveBaselines}
+                      disabled={savingBaselines}
+                      className="flex items-center justify-center gap-2 rounded-lg bg-[var(--accent-primary)] hover:opacity-90 px-4 py-2 text-xs font-semibold text-[var(--bg-base)] transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      {savingBaselines ? "Saving..." : "Save Baselines"}
+                    </button>
+                    {baselinesSaved && (
+                      <span className="flex items-center gap-1 text-xs text-emerald-500 font-medium animate-fade-in">
+                        <Check className="h-3.5 w-3.5" />
+                        Saved
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Google Health scopes checklist */}
@@ -479,9 +545,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 {/* Action Buttons */}
                 <div className="space-y-2.5 pt-4">
                   <button
-                      type="submit"
+                      type="button"
+                      onClick={handleConnectGoogleHealth}
                       disabled={loading}
-                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--accent-primary)] hover:opacity-90 py-2.5 text-[var(--bg-base)] font-semibold text-sm transition-all disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--accent-primary)] hover:opacity-90 py-2.5 text-[var(--bg-base)] font-semibold text-sm transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {loading ? (
                       <>
@@ -489,19 +556,22 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         Connecting...
                       </>
                     ) : (
-                      "Save & Connect Gateway"
+                      "Connect to Google Health"
                     )}
                   </button>
+                  <p className="text-[11px] text-[var(--text-secondary)] text-center mt-1 leading-relaxed">
+                    This may open a Google sign-in window.
+                  </p>
 
                   <button
                     type="button"
                     onClick={handleResetToSample}
-                    className="w-full py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm text-center transition-colors"
+                    className="w-full py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm text-center transition-colors cursor-pointer"
                   >
                     Reset to Sample Data
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         </div>
