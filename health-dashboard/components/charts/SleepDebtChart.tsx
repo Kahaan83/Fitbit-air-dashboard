@@ -16,10 +16,23 @@ import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 
+const css = (v: string) => {
+  if (typeof window === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+};
+
 export function SleepDebtChart() {
   const { sleepDebt } = useChartData();
-  const { settings } = useDashboardStore();
+  const { settings, theme } = useDashboardStore();
   const target = settings.targetSleepHours;
+
+  const colorTextSecondary = css("--text-secondary") || "#9090A8";
+  const colorBorderSubtle = css("--border-subtle") || "rgba(124,109,250,0.08)";
+  const colorBorderMedium = css("--border-medium") || "rgba(124,109,250,0.25)";
+  const colorBgSurface = css("--bg-surface") || "#111118";
+  const colorTextPrimary = css("--text-primary") || "#E8E8F0";
+  const colorChartSleep = css("--chart-sleep") || "#38BDF8";
+  const colorAccentRed = css("--accent-red") || "#F4546A";
 
   const formatXAxis = (tickItem: string) => {
     try {
@@ -49,22 +62,22 @@ export function SleepDebtChart() {
   return (
     <div
       data-testid="sleep-debt-chart"
-      className="rounded-xl border border-white/8 bg-slate-900/60 p-5"
+      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5"
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-white">Sleep Duration & Deficit</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Sleep Duration & Deficit</h3>
             <MetricInfo metricKey="sleep_debt" />
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Nightly sleep hours vs. target ({target}h)</p>
+          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Nightly sleep hours vs. target ({target}h)</p>
         </div>
         <div className="flex gap-3 text-xs font-medium">
-          <span className="flex items-center gap-1 text-sky-400">
-            <span className="h-2 w-2 rounded-full bg-sky-400" /> Sleep Duration
+          <span className="flex items-center gap-1 text-[var(--chart-sleep)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--chart-sleep)]" /> Sleep Duration
           </span>
-          <span className="flex items-center gap-1 text-red-500">
-            <span className="h-2 w-2 rounded-full bg-red-500" /> Sleep Deficit
+          <span className="flex items-center gap-1 text-[var(--accent-red)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--accent-red)]" /> Sleep Deficit
           </span>
         </div>
       </div>
@@ -73,10 +86,10 @@ export function SleepDebtChart() {
         {sleepDebt && sleepDebt.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={colorBorderSubtle} vertical={false} />
               <XAxis
                 dataKey="date"
-                stroke="#64748b"
+                stroke={colorTextSecondary}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -84,19 +97,19 @@ export function SleepDebtChart() {
               />
               <YAxis
                 domain={[0, 12]}
-                stroke="#64748b"
+                stroke={colorTextSecondary}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#0f172a",
-                  borderColor: "rgba(255,255,255,0.1)",
+                  backgroundColor: colorBgSurface,
+                  borderColor: colorBorderMedium,
                   borderRadius: "6px",
                 }}
-                labelClassName="text-slate-400 text-xs font-mono"
-                itemStyle={{ fontSize: "12px", fontWeight: "bold" }}
+                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
+                itemStyle={{ fontSize: "12px", fontWeight: "bold", color: colorTextPrimary }}
                 formatter={(value: any, name: any) => {
                   if (name === "actual_sleep") return [`${value} hrs`, "Time Slept"];
                   if (name === "deficit" && value > 0) return [`${value} hrs`, "Deficit"];
@@ -106,18 +119,18 @@ export function SleepDebtChart() {
               />
               <ReferenceLine
                 y={target}
-                stroke="rgba(255, 255, 255, 0.4)"
+                stroke={colorTextSecondary}
                 strokeDasharray="4 4"
                 label={{
                   value: `Target (${target}h)`,
-                  fill: "#fff",
+                  fill: colorTextPrimary,
                   fontSize: 10,
                   position: "right",
                 }}
               />
-              {/* Stack actual sleep (blue) and deficit (red) */}
-              <Bar dataKey="actual_sleep" stackId="sleep" fill="#38bdf8" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="deficit" stackId="sleep" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              {/* Stack actual sleep and deficit */}
+              <Bar dataKey="actual_sleep" stackId="sleep" fill={colorChartSleep} radius={[2, 2, 0, 0]} />
+              <Bar dataKey="deficit" stackId="sleep" fill={colorAccentRed} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

@@ -47,14 +47,14 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
   });
 
   const colorMap: Record<string, string> = {
-    rose: "#f43f5e",
-    violet: "#8b5cf6",
-    sky: "#0ea5e9",
-    amber: "#f59e0b",
-    emerald: "#10b981",
-    indigo: "#6366f1",
+    rose: "var(--chart-hr)",
+    violet: "var(--chart-hrv)",
+    sky: "var(--chart-sleep)",
+    amber: "var(--chart-stress)",
+    emerald: "var(--accent-green)",
+    indigo: "var(--accent-primary)",
   };
-  const stroke = colorMap[color] ?? "#8b5cf6";
+  const stroke = colorMap[color] ?? "var(--accent-primary)";
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="opacity-70">
@@ -73,33 +73,33 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
 // ── Single metric card ─────────────────────────────────────────────────────────
 function MetricCard({ icon, label, value, unit, sub, color, sparkPoints, latestTime, metricKey }: MetricCardProps) {
   const borderMap: Record<string, string> = {
-    rose:    "border-rose-500/20 bg-rose-500/5",
-    violet:  "border-violet-500/20 bg-violet-500/5",
-    sky:     "border-sky-500/20 bg-sky-500/5",
-    amber:   "border-amber-500/20 bg-amber-500/5",
-    emerald: "border-emerald-500/20 bg-emerald-500/5",
-    indigo:  "border-indigo-500/20 bg-indigo-500/5",
+    rose:    "border-[var(--chart-hr)]/20 bg-[var(--chart-hr)]/5",
+    violet:  "border-[var(--chart-hrv)]/20 bg-[var(--chart-hrv)]/5",
+    sky:     "border-[var(--chart-sleep)]/20 bg-[var(--chart-sleep)]/5",
+    amber:   "border-[var(--chart-stress)]/20 bg-[var(--chart-stress)]/5",
+    emerald: "border-[var(--accent-green)]/20 bg-[var(--accent-green)]/5",
+    indigo:  "border-[var(--accent-primary)]/20 bg-[var(--accent-primary)]/5",
   };
   const iconMap: Record<string, string> = {
-    rose:    "bg-rose-600/10 text-rose-400 border-rose-500/20",
-    violet:  "bg-violet-600/10 text-violet-400 border-violet-500/20",
-    sky:     "bg-sky-600/10 text-sky-400 border-sky-500/20",
-    amber:   "bg-amber-600/10 text-amber-400 border-amber-500/20",
-    emerald: "bg-emerald-600/10 text-emerald-400 border-emerald-500/20",
-    indigo:  "bg-indigo-600/10 text-indigo-400 border-indigo-500/20",
+    rose:    "bg-[var(--chart-hr)]/10 text-[var(--chart-hr)] border-[var(--chart-hr)]/20",
+    violet:  "bg-[var(--chart-hrv)]/10 text-[var(--chart-hrv)] border-[var(--chart-hrv)]/20",
+    sky:     "bg-[var(--chart-sleep)]/10 text-[var(--chart-sleep)] border-[var(--chart-sleep)]/20",
+    amber:   "bg-[var(--chart-stress)]/10 text-[var(--chart-stress)] border-[var(--chart-stress)]/20",
+    emerald: "bg-[var(--accent-green)]/10 text-[var(--accent-green)] border-[var(--accent-green)]/20",
+    indigo:  "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/20",
   };
   const valueMap: Record<string, string> = {
-    rose:    "text-rose-300",
-    violet:  "text-violet-300",
-    sky:     "text-sky-300",
-    amber:   "text-amber-300",
-    emerald: "text-emerald-300",
-    indigo:  "text-indigo-300",
+    rose:    "text-[var(--chart-hr)]",
+    violet:  "text-[var(--chart-hrv)]",
+    sky:     "text-[var(--chart-sleep)]",
+    amber:   "text-[var(--chart-stress)]",
+    emerald: "text-[var(--accent-green)]",
+    indigo:  "text-[var(--accent-primary)]",
   };
 
   return (
     <div
-      className={`rounded-2xl border backdrop-blur-sm shadow-xl p-5 flex flex-col gap-3 ${borderMap[color] ?? ""} bg-slate-900/50`}
+      className={`rounded-2xl border backdrop-blur-sm shadow-xl p-5 flex flex-col gap-3 ${borderMap[color] ?? ""} bg-[var(--bg-card)]/50`}
     >
       {/* Top row */}
       <div className="flex items-center justify-between">
@@ -114,21 +114,21 @@ function MetricCard({ icon, label, value, unit, sub, color, sparkPoints, latestT
       {/* Value */}
       <div>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">{label}</span>
+          <span className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">{label}</span>
           {metricKey && <MetricInfo metricKey={metricKey} size="sm" />}
         </div>
         <div className="flex items-baseline gap-1.5 mt-1">
-          <span className={`text-4xl font-black font-mono tabular-nums ${valueMap[color] ?? "text-white"}`}>
+          <span className={`text-4xl font-black font-mono tabular-nums ${valueMap[color] ?? "text-[var(--text-primary)]"}`}>
             {value}
           </span>
-          <span className="text-sm text-slate-400 font-medium">{unit}</span>
+          <span className="text-sm text-[var(--text-secondary)] font-medium">{unit}</span>
         </div>
-        {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+        {sub && <p className="text-xs text-[var(--text-secondary)] mt-1">{sub}</p>}
       </div>
 
       {/* Bottom: last reading time */}
       {latestTime && (
-        <div className="flex items-center gap-1 text-[10px] text-slate-600 border-t border-white/5 pt-2">
+        <div className="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)] border-t border-[var(--border-subtle)] pt-2">
           <RefreshCw className="h-3 w-3" />
           <span>Latest: {latestTime}</span>
         </div>
@@ -144,24 +144,24 @@ function RawTable({ title, rows, columns }: {
   columns: { key: string; label: string; format?: (v: any) => string }[];
 }) {
   if (!rows.length) return (
-    <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-6 text-center text-slate-400 text-sm">
-      No data available for <span className="font-semibold text-slate-400">{title}</span>
+    <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)]/40 p-6 text-center text-[var(--text-secondary)] text-sm">
+      No data available for <span className="font-semibold text-[var(--text-secondary)]">{title}</span>
     </div>
   );
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-sm overflow-hidden shadow-xl">
-      <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
-        <Database className="h-4 w-4 text-indigo-400" />
-        <span className="text-sm font-semibold text-slate-200">{title}</span>
-        <span className="ml-auto text-xs text-slate-400 font-mono">{rows.length} rows</span>
+    <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)]/40 backdrop-blur-sm overflow-hidden shadow-xl">
+      <div className="px-5 py-3 border-b border-[var(--border-subtle)] flex items-center gap-2">
+        <Database className="h-4 w-4 text-[var(--accent-primary)]" />
+        <span className="text-sm font-semibold text-[var(--text-primary)]">{title}</span>
+        <span className="ml-auto text-xs text-[var(--text-secondary)] font-mono">{rows.length} rows</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-white/5">
+            <tr className="border-b border-[var(--border-subtle)]">
               {columns.map((c) => (
-                <th key={c.label} className="px-4 py-2.5 text-left text-slate-400 font-semibold uppercase tracking-wider">
+                <th key={c.label} className="px-4 py-2.5 text-left text-[var(--text-secondary)] font-semibold uppercase tracking-wider">
                   {c.label}
                 </th>
               ))}
@@ -169,9 +169,9 @@ function RawTable({ title, rows, columns }: {
           </thead>
           <tbody>
             {rows.slice(-50).reverse().map((row, i) => (
-              <tr key={i} className="border-b border-white/5 hover:bg-white/3 transition-colors">
+              <tr key={i} className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]/30 transition-colors">
                 {columns.map((c) => (
-                  <td key={c.label} className="px-4 py-2 font-mono text-slate-300">
+                  <td key={c.label} className="px-4 py-2 font-mono text-[var(--text-secondary)]">
                     {c.format ? c.format(row[c.key]) : String(row[c.key] ?? "—")}
                   </td>
                 ))}
@@ -271,15 +271,15 @@ export default function RawMetricsPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-normal text-white">Raw Metrics</h1>
-          <p className="text-slate-400 text-[13px] mt-1">All data streams from Google Health API</p>
+          <h1 className="text-xl font-semibold tracking-normal text-[var(--text-primary)]">Raw Metrics</h1>
+          <p className="text-[var(--text-secondary)] text-[13px] mt-1">All data streams from Google Health API</p>
         </div>
         <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold border self-start md:self-auto ${
           isLive
-            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-            : "bg-slate-800/80 border-slate-700 text-slate-400"
+            ? "bg-[var(--accent-green)]/10 border-[var(--accent-green)]/30 text-[var(--accent-green)]"
+            : "bg-[var(--bg-card)]/80 border-[var(--border-soft)] text-[var(--text-secondary)]"
         }`}>
-          <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${isLive ? "bg-emerald-400" : "bg-slate-500"}`} />
+          <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${isLive ? "bg-[var(--accent-green)]" : "bg-[var(--text-tertiary)]"}`} />
           {isLive ? `Live · Synced ${lastSync ? new Date(lastSync).toLocaleTimeString() : "—"}` : "Sample Data Mode"}
         </div>
       </div>
@@ -375,10 +375,10 @@ export default function RawMetricsPage() {
 
       {/* ── Sleep Summary (if data available) ────────────────────────── */}
       {(sleepArr.length > 0 || !isLive) && (
-        <div className="rounded-2xl border border-white/10 bg-slate-900/40 backdrop-blur-sm shadow-xl p-6">
+        <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)]/40 backdrop-blur-sm shadow-xl p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Activity className="h-4 w-4 text-indigo-400" />
-            <h2 className="font-semibold text-slate-200 text-sm">Sleep Sessions</h2>
+            <Activity className="h-4 w-4 text-[var(--accent-primary)]" />
+            <h2 className="font-semibold text-[var(--text-primary)] text-sm">Sleep Sessions</h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
@@ -406,19 +406,19 @@ export default function RawMetricsPage() {
                   ]),
             ].map((item) => {
               const colorCls: Record<string, string> = {
-                indigo: "text-indigo-300",
-                violet: "text-violet-300",
-                sky: "text-sky-300",
-                amber: "text-amber-300",
+                indigo: "text-[var(--accent-primary)]",
+                violet: "text-[var(--chart-hrv)]",
+                sky: "text-[var(--chart-sleep)]",
+                amber: "text-[var(--chart-stress)]",
               };
               return (
-                <div key={item.label} className="rounded-xl border border-white/5 bg-white/3 p-3">
+                <div key={item.label} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-base)]/30 p-3">
                   <div className="flex items-center justify-between gap-1.5">
-                    <span className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold">{item.label}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-[var(--text-secondary)] font-semibold">{item.label}</span>
                     <MetricInfo metricKey={item.metricKey} size="sm" />
                   </div>
-                  <div className={`text-2xl font-black font-mono mt-1 ${colorCls[item.color] ?? "text-white"}`}>{item.value}</div>
-                  <span className="text-[10px] text-slate-600">{item.sub}</span>
+                  <div className={`text-2xl font-black font-mono mt-1 ${colorCls[item.color] ?? "text-[var(--text-primary)]"}`}>{item.value}</div>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">{item.sub}</span>
                 </div>
               );
             })}
@@ -428,10 +428,10 @@ export default function RawMetricsPage() {
 
       {/* ── Raw Data Tables ───────────────────────────────────────────── */}
       <div className="space-y-4">
-        <h2 className="text-base font-semibold text-slate-300 flex items-center gap-2">
-          <Database className="h-4 w-4 text-indigo-400" />
+        <h2 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
+          <Database className="h-4 w-4 text-[var(--accent-primary)]" />
           Raw Data Tables
-          <span className="text-xs text-slate-400 font-normal">(Most recent 50 records shown per stream)</span>
+          <span className="text-xs text-[var(--text-secondary)] font-normal">(Most recent 50 records shown per stream)</span>
         </h2>
 
         {/* Heart Rate raw table */}

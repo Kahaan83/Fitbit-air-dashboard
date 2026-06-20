@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useDashboardStore } from "@/lib/store";
-import { X, RefreshCw } from "lucide-react";
+import { X, RefreshCw, Check } from "lucide-react";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { settings, updateSettings, dataMode, setDataMode, addToast, setIsLoadingLiveData } = useDashboardStore();
+  const { settings, updateSettings, dataMode, setDataMode, addToast, setIsLoadingLiveData, theme, setTheme } = useDashboardStore();
 
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -238,20 +238,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         {/* Backdrop overlay */}
         <div
           onClick={onClose}
-          className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300"
+          className="absolute inset-0 bg-[var(--bg-base)]/80 backdrop-blur-sm transition-opacity duration-300"
           aria-hidden="true"
         />
 
         <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
           <div className="pointer-events-auto w-screen max-w-md transform transition-all duration-300 ease-in-out">
-            <div className="flex h-full flex-col overflow-y-scroll border-l border-white/10 bg-[#0a0f1a] shadow-2xl">
+            <div className="flex h-full flex-col overflow-y-scroll border-l border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-2xl">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-white/5">
+              <div className="px-6 py-4 border-b border-[var(--border-subtle)]">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-white text-sm" id="slide-over-title">Settings</span>
+                  <span className="font-medium text-[var(--text-primary)] text-sm" id="slide-over-title">Settings</span>
                   <button
                     onClick={onClose}
-                    className="rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white transition-colors duration-200"
+                    className="rounded-lg p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)] transition-colors duration-200"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -261,11 +261,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {/* Form Content */}
               <form onSubmit={handleSave} className="flex-1 space-y-6 px-6 py-6 text-sm">
                 {/* Mode Select Section */}
-                <div className="rounded-xl border border-white/15 bg-white/5 p-4">
+                <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)]/50 p-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="font-semibold text-slate-200">Data Source</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">Toggle between mock and live data</p>
+                      <h3 className="font-semibold text-[var(--text-primary)]">Data Source</h3>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">Toggle between mock and live data</p>
                     </div>
                     <button
                       type="button"
@@ -300,7 +300,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         }
                       }}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        dataMode === "live" ? "bg-indigo-600" : "bg-slate-700"
+                        dataMode === "live" ? "bg-[var(--accent-primary)]" : "bg-[var(--border-medium)]"
                       }`}
                     >
                       <span
@@ -312,69 +312,129 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </div>
                 </div>
 
+                {/* Appearance Section */}
+                <div className="space-y-4">
+                  <div className="text-[var(--text-secondary)] text-[11px] font-medium uppercase tracking-widest border-b border-[var(--border-subtle)] pb-1">
+                    Appearance
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Premium Dark Theme Card */}
+                    <button
+                      type="button"
+                      onClick={() => setTheme("premium")}
+                      className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-left transition-all duration-200 cursor-pointer ${
+                        theme === "premium"
+                          ? "border-[var(--accent-primary)] bg-[var(--bg-card)] shadow-lg shadow-[var(--accent-primary)]/5"
+                          : "border-[var(--border-soft)] bg-[var(--bg-card)]/30 hover:border-[var(--border-medium)] hover:bg-[var(--bg-card)]/50"
+                      }`}
+                    >
+                      {/* 60x40px Color Swatch Grid */}
+                      <div className="w-[60px] h-[40px] rounded-lg overflow-hidden border border-[var(--border-soft)] flex">
+                        <div className="w-2/3 h-full p-1.5 flex flex-col gap-1 bg-[#09090F]">
+                          <div className="h-1 w-full rounded-xs bg-[#16161F]" />
+                          <div className="h-2 w-full rounded-xs bg-[#16161F]" />
+                        </div>
+                        <div className="w-1/3 h-full bg-[#7C6DFA]" />
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">Premium Dark</span>
+                        {theme === "premium" && (
+                          <Check className="h-3 w-3 text-[var(--accent-primary)]" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Whoop Theme Card */}
+                    <button
+                      type="button"
+                      onClick={() => setTheme("whoop")}
+                      className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-left transition-all duration-200 cursor-pointer ${
+                        theme === "whoop"
+                          ? "border-[var(--accent-primary)] bg-[var(--bg-card)] shadow-lg shadow-[var(--accent-primary)]/5"
+                          : "border-[var(--border-soft)] bg-[var(--bg-card)]/30 hover:border-[var(--border-medium)] hover:bg-[var(--bg-card)]/50"
+                      }`}
+                    >
+                      {/* 60x40px Color Swatch Grid */}
+                      <div className="w-[60px] h-[40px] rounded-lg overflow-hidden border border-[var(--border-soft)] flex">
+                        <div className="w-2/3 h-full p-1.5 flex flex-col gap-1 bg-[#000000]">
+                          <div className="h-1 w-full rounded-xs bg-[#111111]" />
+                          <div className="h-2 w-full rounded-xs bg-[#111111]" />
+                        </div>
+                        <div className="w-1/3 h-full bg-[#00FF9C]" />
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-xs font-semibold text-[var(--text-primary)]">Whoop</span>
+                        {theme === "whoop" && (
+                          <Check className="h-3 w-3 text-[var(--accent-primary)]" />
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
                 {/* API Credentials */}
                 <div className="space-y-4">
-                  <div className="text-slate-400 text-[11px] font-medium uppercase tracking-widest border-b border-white/5 pb-1">
+                  <div className="text-[var(--text-secondary)] text-[11px] font-medium uppercase tracking-widest border-b border-[var(--border-subtle)] pb-1">
                     Google Cloud Credentials
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 font-medium mb-1.5">GCP Client ID</label>
+                    <label className="block text-[var(--text-secondary)] font-medium mb-1.5">GCP Client ID</label>
                     <input
                       type="text"
                       value={clientId}
                       onChange={(e) => setClientId(e.target.value)}
                       placeholder="stored securely on backend"
-                      className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
+                      className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors"
                     />
                   </div>
                 </div>
 
                 {/* Baselines Configuration */}
                 <div className="space-y-4">
-                  <div className="text-slate-400 text-[11px] font-medium uppercase tracking-widest border-b border-white/5 pb-1">
+                  <div className="text-[var(--text-secondary)] text-[11px] font-medium uppercase tracking-widest border-b border-[var(--border-subtle)] pb-1">
                     Physiological Baselines
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-slate-400 font-medium mb-1.5">Age</label>
+                      <label className="block text-[var(--text-secondary)] font-medium mb-1.5">Age</label>
                       <input
                         type="number"
                         value={age}
                         onChange={(e) => setAge(parseInt(e.target.value) || 28)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
+                        className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-400 font-medium mb-1.5">Target Sleep (hrs)</label>
+                      <label className="block text-[var(--text-secondary)] font-medium mb-1.5">Target Sleep (hrs)</label>
                       <input
                         type="number"
                         step="0.5"
                         value={targetSleepHours}
                         onChange={(e) => setTargetSleepHours(parseFloat(e.target.value) || 8)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
+                        className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-slate-400 font-medium mb-1.5">Resting HR (bpm)</label>
+                      <label className="block text-[var(--text-secondary)] font-medium mb-1.5">Resting HR (bpm)</label>
                       <input
                         type="number"
                         value={restingHR}
                         onChange={(e) => setRestingHR(parseInt(e.target.value) || 58)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
+                        className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-400 font-medium mb-1.5">Tested Max HR (bpm)</label>
+                      <label className="block text-[var(--text-secondary)] font-medium mb-1.5">Tested Max HR (bpm)</label>
                       <input
                         type="number"
                         value={maxHR}
                         onChange={(e) => setMaxHR(parseInt(e.target.value) || 185)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none transition-colors"
+                        className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors"
                       />
                     </div>
                   </div>
@@ -382,7 +442,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                 {/* Google Health scopes checklist */}
                 <div className="space-y-3">
-                  <div className="text-slate-400 text-[11px] font-medium uppercase tracking-widest border-b border-white/5 pb-1">
+                  <div className="text-[var(--text-secondary)] text-[11px] font-medium uppercase tracking-widest border-b border-[var(--border-subtle)] pb-1">
                     OAuth Required Scopes
                   </div>
 
@@ -404,12 +464,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         desc: "Covers physical movements & steps (required for active/acute stress tracking filtering).",
                       },
                     ].map((scopeObj, i) => (
-                      <div key={i} className="flex gap-2.5 rounded-lg border border-white/5 bg-slate-950/40 p-2.5">
-                        <span className="mt-0.5 text-slate-400 select-none">—</span>
+                      <div key={i} className="flex gap-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)]/40 p-2.5">
+                        <span className="mt-0.5 text-[var(--text-secondary)] select-none">—</span>
                         <div>
-                          <p className="font-semibold text-slate-200">{scopeObj.title}</p>
-                          <p className="text-[10px] text-slate-600 font-mono mb-1">{scopeObj.scope}</p>
-                          <p className="text-slate-400 leading-relaxed">{scopeObj.desc}</p>
+                          <p className="font-semibold text-[var(--text-primary)]">{scopeObj.title}</p>
+                          <p className="text-[10px] text-[var(--text-tertiary)] font-mono mb-1">{scopeObj.scope}</p>
+                          <p className="text-[var(--text-secondary)] leading-relaxed">{scopeObj.desc}</p>
                         </div>
                       </div>
                     ))}
@@ -419,9 +479,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 {/* Action Buttons */}
                 <div className="space-y-2.5 pt-4">
                   <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-white hover:bg-slate-100 py-2.5 text-slate-900 font-medium text-sm transition-all disabled:opacity-50"
+                      type="submit"
+                      disabled={loading}
+                      className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--accent-primary)] hover:opacity-90 py-2.5 text-[var(--bg-base)] font-semibold text-sm transition-all disabled:opacity-50"
                   >
                     {loading ? (
                       <>
@@ -436,7 +496,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <button
                     type="button"
                     onClick={handleResetToSample}
-                    className="w-full py-2 text-slate-400 hover:text-slate-300 text-sm text-center transition-colors"
+                    className="w-full py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm text-center transition-colors"
                   >
                     Reset to Sample Data
                   </button>

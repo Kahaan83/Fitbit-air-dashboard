@@ -9,8 +9,8 @@ export function DataStreamsStrip() {
   const { dataMode, liveData } = useDashboardStore();
 
   const getQualityColor = (streamName: string) => {
-    if (dataMode === "sample") return "bg-emerald-500 shadow-emerald-500/20";
-    if (!liveData) return "bg-red-500 shadow-red-500/20";
+    if (dataMode === "sample") return "bg-[var(--accent-green)] shadow-[var(--accent-green)]/20";
+    if (!liveData) return "bg-[var(--accent-red)] shadow-[var(--accent-red)]/20";
 
     let hasData = false;
     switch (streamName) {
@@ -30,7 +30,7 @@ export function DataStreamsStrip() {
         break;
     }
 
-    return hasData ? "bg-emerald-500 shadow-emerald-500/20" : "bg-amber-500 shadow-amber-500/20";
+    return hasData ? "bg-[var(--accent-green)] shadow-[var(--accent-green)]/20" : "bg-[var(--accent-amber)] shadow-[var(--accent-amber)]/20";
   };
 
   const getLatestValue = (streamName: string): string => {
@@ -80,23 +80,23 @@ export function DataStreamsStrip() {
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border border-white/10 bg-slate-900/30 p-4 backdrop-blur-sm shadow-md">
-      <span className="text-slate-400 font-medium text-xs">Data Streams:</span>
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)]/30 p-4 backdrop-blur-sm shadow-md">
+      <span className="text-[var(--text-secondary)] font-medium text-xs">Data Streams:</span>
       <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
         {streams.map((stream) => {
           const StreamIcon = stream.icon;
           const dotColor = getQualityColor(stream.name);
           return (
-            <div key={stream.name} className="flex items-center gap-2 text-slate-300 font-mono">
+            <div key={stream.name} className="flex items-center gap-2 text-[var(--text-secondary)] font-mono">
               <span className={`h-2 w-2 rounded-full shadow-md ${dotColor}`} />
-              <StreamIcon className="h-3.5 w-3.5 text-slate-400" />
+              <StreamIcon className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
               <div className="flex items-center gap-1">
                 <span>{stream.name}</span>
                 <MetricInfo metricKey={stream.key} size="sm" />
               </div>
               <span
                 className={`font-bold tabular-nums ${
-                  dataMode === "live" ? "text-emerald-400" : "text-slate-300"
+                  dataMode === "live" ? "text-[var(--accent-green)]" : "text-[var(--text-secondary)]"
                 }`}
               >
                 {getLatestValue(stream.name)}

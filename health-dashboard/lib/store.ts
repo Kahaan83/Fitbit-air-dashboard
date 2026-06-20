@@ -28,6 +28,8 @@ interface DashboardState {
   toasts: Toast[];
   addToast: (message: string, type?: "success" | "error" | "info") => void;
   removeToast: (id: string) => void;
+  theme: "premium" | "whoop";
+  setTheme: (theme: "premium" | "whoop") => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -70,4 +72,12 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set((state) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     })),
+  theme: typeof window !== "undefined" ? (localStorage.getItem("theme") as "premium" | "whoop") ?? "premium" : "premium",
+  setTheme: (t) => {
+    if (typeof window !== "undefined") {
+      document.documentElement.setAttribute("data-theme", t);
+      localStorage.setItem("theme", t);
+    }
+    set({ theme: t });
+  },
 }));

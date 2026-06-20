@@ -13,11 +13,26 @@ import {
   Cell,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
+import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 
+const css = (v: string) => {
+  if (typeof window === "undefined") return "";
+  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+};
+
 export function ANSBalanceChart() {
   const { ansBalance } = useChartData();
+  const theme = useDashboardStore((state) => state.theme);
+
+  const colorTextSecondary = css("--text-secondary") || "#9090A8";
+  const colorBorderSubtle = css("--border-subtle") || "rgba(124,109,250,0.08)";
+  const colorBorderMedium = css("--border-medium") || "rgba(124,109,250,0.25)";
+  const colorBgSurface = css("--bg-surface") || "#111118";
+  const colorTextPrimary = css("--text-primary") || "#E8E8F0";
+  const colorAccentPrimary = css("--accent-primary") || "#7C6DFA";
+  const colorAccentRed = css("--accent-red") || "#F4546A";
 
   const formatXAxis = (tickItem: string) => {
     try {
@@ -40,22 +55,22 @@ export function ANSBalanceChart() {
   return (
     <div
       data-testid="ans-chart"
-      className="rounded-xl border border-white/8 bg-slate-900/60 p-5"
+      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5"
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-white">ANS Autonomic Balance</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">ANS Autonomic Balance</h3>
             <MetricInfo metricKey="lf_hf_ratio" />
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Low-Frequency (Sympathetic) / High-Frequency (Parasympathetic) Power Ratio</p>
+          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Low-Frequency (Sympathetic) / High-Frequency (Parasympathetic) Power Ratio</p>
         </div>
         <div className="flex gap-3 text-xs font-medium">
-          <span className="flex items-center gap-1 text-indigo-400">
-            <span className="h-2 w-2 rounded-full bg-indigo-400" /> Normal Balance (1.0–2.0)
+          <span className="flex items-center gap-1 text-[var(--accent-primary)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--accent-primary)]" /> Normal Balance (1.0–2.0)
           </span>
-          <span className="flex items-center gap-1 text-red-500">
-            <span className="h-2 w-2 rounded-full bg-red-500" /> Out of Range (Stress/Fatigue)
+          <span className="flex items-center gap-1 text-[var(--accent-red)]">
+            <span className="h-2 w-2 rounded-full bg-[var(--accent-red)]" /> Out of Range (Stress/Fatigue)
           </span>
         </div>
       </div>
@@ -64,12 +79,12 @@ export function ANSBalanceChart() {
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={colorBorderSubtle} vertical={false} />
               <XAxis
                 type="category"
                 dataKey="date"
                 name="Date"
-                stroke="#64748b"
+                stroke={colorTextSecondary}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -80,7 +95,7 @@ export function ANSBalanceChart() {
                 dataKey="lf_hf_ratio"
                 name="LF/HF Ratio"
                 domain={[0.4, 3.0]}
-                stroke="#64748b"
+                stroke={colorTextSecondary}
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -89,19 +104,21 @@ export function ANSBalanceChart() {
               <ReferenceArea
                 y1={1.0}
                 y2={2.0}
-                fill="rgba(99, 102, 241, 0.05)"
-                stroke="rgba(99, 102, 241, 0.15)"
+                fill={colorAccentPrimary}
+                fillOpacity={0.05}
+                stroke={colorAccentPrimary}
+                strokeOpacity={0.15}
                 strokeDasharray="3 3"
               />
               <Tooltip
-                cursor={{ strokeDasharray: "3 3", stroke: "rgba(255,255,255,0.1)" }}
+                cursor={{ strokeDasharray: "3 3", stroke: colorBorderMedium }}
                 contentStyle={{
-                  backgroundColor: "#0f172a",
-                  borderColor: "rgba(255,255,255,0.1)",
+                  backgroundColor: colorBgSurface,
+                  borderColor: colorBorderMedium,
                   borderRadius: "6px",
                 }}
-                labelClassName="text-slate-400 text-xs font-mono"
-                itemStyle={{ fontSize: "12px" }}
+                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
+                itemStyle={{ fontSize: "12px", color: colorTextPrimary }}
                 formatter={(value: any, name: any) => {
                   if (name === "LF/HF Ratio") return [`${value}`, "LF/HF Balance"];
                   return [value, name];
@@ -111,8 +128,9 @@ export function ANSBalanceChart() {
                 {data.map((entry: any, index: number) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={entry.isNormal ? "#6366f1" : "#ef4444"}
-                    stroke={entry.isNormal ? "rgba(99,102,241,0.5)" : "rgba(239,68,68,0.5)"}
+                    fill={entry.isNormal ? colorAccentPrimary : colorAccentRed}
+                    stroke={entry.isNormal ? colorAccentPrimary : colorAccentRed}
+                    strokeOpacity={0.5}
                     strokeWidth={2}
                     r={entry.isNormal ? 5 : 6}
                   />

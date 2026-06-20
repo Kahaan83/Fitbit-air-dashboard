@@ -58,12 +58,7 @@
   --chart-zone5:  #FF3B5C;
 }
 
-body {
-  background-color: var(--bg-base);
-  color: var(--text-primary);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  -webkit-font-smoothing: antialiased;
-}
+body { background-color: var(--bg-base); color: var(--text-primary); }
 
 
 
