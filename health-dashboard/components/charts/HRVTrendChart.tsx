@@ -2,79 +2,36 @@
 
 import React from "react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from "recharts";
 import { useChartData } from "@/lib/useChartData";
-import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
-
-const css = (v: string) => {
-  if (typeof window === "undefined") return "";
-  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-};
+import { cssVar } from "@/lib/cssVar";
 
 export function HRVTrendChart() {
   const { hrv } = useChartData();
-  const theme = useDashboardStore((state) => state.theme);
 
-  const colorTextSecondary = css("--text-secondary") || "#9090A8";
-  const colorBorderSubtle = css("--border-subtle") || "rgba(124,109,250,0.08)";
-  const colorBorderMedium = css("--border-medium") || "rgba(124,109,250,0.25)";
-  const colorBgSurface = css("--bg-surface") || "#111118";
-  const colorTextPrimary = css("--text-primary") || "#E8E8F0";
-  const colorAccentGreen = css("--accent-green") || "#22D3A5";
-  const colorAccentAmber = css("--accent-amber") || "#F59E0B";
+  const colorTextSecondary = cssVar("--text-secondary") || "#888888";
+  const colorBorderSubtle = "rgba(255,255,255,0.04)";
+  const colorBorderMedium = "rgba(255,255,255,0.08)";
+  const colorBgSurface = "#1C1C1C";
+  const colorTextPrimary = "#FFFFFF";
 
   const hasData = hrv && hrv.length > 0;
 
-  // Calculate dynamic stops for green/orange split at 50ms
-  // Find min/max values to normalize the gradient offset
   let minVal = 20;
   let maxVal = 80;
-  
-  // Calculate percentage offset where Y = 50 is relative to min/max
-  const threshold = 50;
-  let offset = 0.5;
-  let stop1Color = colorAccentGreen;
-  let stop2Color = colorAccentGreen;
-  let stop3Color = colorAccentAmber;
-  let stop4Color = colorAccentAmber;
-
   if (hasData) {
     const values = hrv.map((d: any) => d.value);
     minVal = Math.min(...values, 20);
     maxVal = Math.max(...values, 80);
-    if (maxVal !== minVal) {
-      // Recharts gradients flow top-down (0 = top, 1 = bottom)
-      // So Y=50 is: (max - 50) / (max - min)
-      offset = (maxVal - threshold) / (maxVal - minVal);
-    }
-    offset = Math.max(0, Math.min(1, offset));
-
-    const hasAbove = hrv.some((d: any) => d.value >= threshold);
-    const hasBelow = hrv.some((d: any) => d.value < threshold);
-
-    if (!hasBelow || offset < 0.05) {
-      offset = 0;
-      stop1Color = colorAccentGreen;
-      stop2Color = colorAccentGreen;
-      stop3Color = colorAccentGreen;
-      stop4Color = colorAccentGreen;
-    } else if (!hasAbove || offset > 0.95) {
-      offset = 1;
-      stop1Color = colorAccentAmber;
-      stop2Color = colorAccentAmber;
-      stop3Color = colorAccentAmber;
-      stop4Color = colorAccentAmber;
-    }
   }
 
   const formatXAxis = (tickItem: string) => {
@@ -89,51 +46,39 @@ export function HRVTrendChart() {
   return (
     <div
       data-testid="hrv-chart"
-      className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 min-w-0"
+      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] min-w-0"
     >
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">HRV Recovery Trend</h3>
-            <MetricInfo metricKey="hrv" />
-          </div>
-          <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Daily RMSSD (ms) — 30 Day History</p>
-        </div>
-        <div className="flex gap-3 text-xs font-medium">
-          <span className="flex items-center gap-1 text-[var(--accent-green)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--accent-green)]" /> Optimal (&gt;50ms)
-          </span>
-          <span className="flex items-center gap-1 text-[var(--accent-amber)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--accent-amber)]" /> Fatigued (&lt;50ms)
-          </span>
-        </div>
+      {/* Header Row */}
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+          HRV RECOVERY TREND
+        </span>
+        <MetricInfo metricKey="hrv" />
       </div>
 
-      <div className="h-64 w-full" role="img" aria-label="HRV Recovery Trend chart">
+      <div className="h-[320px] w-full" role="img" aria-label="HRV Recovery Trend chart">
         {hasData ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={hrv} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+            <AreaChart data={hrv} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
               <defs>
-                <linearGradient id="hrvSplit" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset={0} stopColor={stop1Color} stopOpacity={1} />
-                  <stop offset={offset} stopColor={stop2Color} stopOpacity={1} />
-                  <stop offset={offset} stopColor={stop3Color} stopOpacity={1} />
-                  <stop offset={1} stopColor={stop4Color} stopOpacity={1} />
+                <linearGradient id="hrvAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00FF87" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#00FF87" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={colorBorderSubtle} vertical={false} />
               <XAxis
                 dataKey="date"
                 stroke={colorTextSecondary}
-                fontSize={11}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={formatXAxis}
               />
               <YAxis
-                domain={[minVal - 5, maxVal + 5]}
+                domain={[Math.floor(minVal - 5), Math.ceil(maxVal + 5)]}
                 stroke={colorTextSecondary}
-                fontSize={11}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
               />
@@ -141,38 +86,29 @@ export function HRVTrendChart() {
                 contentStyle={{
                   backgroundColor: colorBgSurface,
                   borderColor: colorBorderMedium,
-                  borderRadius: "6px",
+                  borderRadius: "8px",
                 }}
-                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
+                labelClassName="text-[#888888] text-xs font-mono"
                 itemStyle={{ color: colorTextPrimary, fontSize: "12px", fontWeight: "bold" }}
                 formatter={(value: any) => [`${value} ms`, "RMSSD"]}
               />
-              <ReferenceLine
-                y={50}
-                stroke={colorBorderMedium}
-                strokeDasharray="4 4"
-                label={{
-                  value: "Baseline (50ms)",
-                  fill: colorTextSecondary,
-                  fontSize: 10,
-                  position: "top",
-                }}
-              />
-              <Line
+              <Area
                 type="monotone"
                 dataKey="value"
-                stroke="url(#hrvSplit)"
-                strokeWidth={3}
-                dot={{ r: 3, strokeWidth: 1 }}
+                stroke="#00FF87"
+                strokeWidth={2}
+                fill="url(#hrvAreaGrad)"
+                dot={{ r: 3, fill: "#00FF87", strokeWidth: 1 }}
                 activeDot={{ r: 5 }}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <EmptyChartState subtitle="HRV data requires a Fitbit Sense or Charge 5+. Sync a wider date range or check your tracker options." />
+          <EmptyChartState subtitle="HRV data requires tracked HRV recordings." />
         )}
       </div>
     </div>
   );
 }
+
 export default HRVTrendChart;

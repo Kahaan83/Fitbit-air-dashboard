@@ -2,7 +2,6 @@
  
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Info } from "lucide-react";
 
 // ── Metric Knowledge Base ───────────────────────────────────────────────────────
 export interface MetricDefinition {
@@ -304,11 +303,11 @@ export function MetricInfo({ metricKey, size = "sm" }: MetricInfoProps) {
       <button
         ref={triggerRef}
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className={`rounded-full p-0.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors hover:bg-white/10 focus:outline-none`}
+        className="text-[#444444] hover:text-[#888888] transition-colors focus:outline-none cursor-pointer flex items-center justify-center"
         aria-label={`Info about ${def.name}`}
         title={`What is ${def.name}?`}
       >
-        <Info className={iconSize} />
+        <i className="ti ti-info-circle text-[16px]" />
       </button>
 
       {open && createPortal(

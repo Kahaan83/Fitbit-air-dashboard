@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
+import Sidebar from "@/components/Sidebar";
 import Script from "next/script";
 
 const geistSans = Geist({
@@ -30,8 +31,19 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <head />
-      <body className="min-h-full flex flex-col bg-[var(--bg-base)]" suppressHydrationWarning>
+      <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
+      </head>
+      <body
+        style={{
+          margin: 0,
+          background: "#000",
+          color: "#fff",
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',
+          WebkitFontSmoothing: "antialiased"
+        }}
+        suppressHydrationWarning
+      >
         <Script
           id="theme-init-script"
           strategy="beforeInteractive"
@@ -45,7 +57,14 @@ export default function RootLayout({
             `,
           }}
         />
-        <ClientLayout>{children}</ClientLayout>
+        <ClientLayout>
+          <div style={{ display: "flex", minHeight: "100vh" }}>
+            <Sidebar />
+            <main style={{ flex: 1, minWidth: 0, overflowX: "hidden" }}>
+              {children}
+            </main>
+          </div>
+        </ClientLayout>
       </body>
     </html>
   );

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDashboardStore } from "@/lib/store";
 import { X, RefreshCw, Check } from "lucide-react";
+import DateRangePicker from "./DateRangePicker";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -351,6 +352,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                         dataMode === "live" ? "bg-[var(--accent-primary)]" : "bg-[var(--border-medium)]"
                       }`}
+                      data-testid="data-source-toggle"
                     >
                       <span
                         className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
@@ -359,6 +361,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       />
                     </button>
                   </div>
+
+                  {dataMode === "live" && (
+                    <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
+                      <label className="block text-[var(--text-secondary)] text-[10px] font-semibold uppercase tracking-wider">
+                        Telemetry Sync Range
+                      </label>
+                      <DateRangePicker />
+                    </div>
+                  )}
                 </div>
 
                 {/* Appearance Section */}
