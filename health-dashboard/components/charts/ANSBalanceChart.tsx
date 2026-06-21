@@ -44,9 +44,17 @@ export function ANSBalanceChart() {
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
-          ANS BALANCE
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
+            ANS BALANCE
+          </span>
+          <span
+            className="text-[11px] text-[var(--text-secondary)] cursor-help hover:text-[var(--text-primary)] transition-colors"
+            title="True LF/HF spectral analysis requires raw RR intervals."
+          >
+            ⓘ
+          </span>
+        </div>
         <MetricInfo metricKey="lf_hf_ratio" />
       </div>
 
@@ -64,20 +72,12 @@ export function ANSBalanceChart() {
                 tickFormatter={formatXAxis}
               />
               <YAxis
-                yAxisId="power"
                 stroke={colorTextSecondary}
                 fontSize={10}
                 tickLine={false}
                 axisLine={false}
-              />
-              <YAxis
-                yAxisId="ratio"
-                orientation="right"
-                stroke={colorTextSecondary}
-                fontSize={10}
-                tickLine={false}
-                axisLine={false}
-                domain={[0, 3]}
+                domain={[0, 100]}
+                tickFormatter={(val) => `${val}%`}
               />
               <Tooltip
                 contentStyle={{
@@ -88,13 +88,12 @@ export function ANSBalanceChart() {
                 labelClassName="text-[var(--text-secondary)] text-xs font-mono"
                 itemStyle={{ fontSize: "12px", color: colorTextPrimary }}
               />
-              <Bar yAxisId="power" dataKey="lf_power" name="LF Power" fill={colorLF} radius={[2, 2, 0, 0]} barSize={12} />
-              <Bar yAxisId="power" dataKey="hf_power" name="HF Power" fill={colorHF} radius={[2, 2, 0, 0]} barSize={12} />
+              <Bar dataKey="sympathetic" name="Sympathetic" fill={colorLF} radius={[2, 2, 0, 0]} barSize={12} />
+              <Bar dataKey="parasympathetic" name="Parasympathetic" fill={colorHF} radius={[2, 2, 0, 0]} barSize={12} />
               <Line
-                yAxisId="ratio"
                 type="monotone"
-                dataKey="lf_hf_ratio"
-                name="LF/HF Ratio"
+                dataKey="parasympathetic"
+                name="ANS Balance (RMSSD proxy)"
                 stroke={colorRatio}
                 strokeWidth={1.5}
                 dot={{ r: 3, fill: colorRatio }}

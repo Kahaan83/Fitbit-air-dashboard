@@ -3,14 +3,15 @@
 import React, { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import WhoopRing from "@/components/ui/WhoopRing";
-import HealthMonitorCard from "@/components/HealthMonitorCard";
-import StressMonitorCard from "@/components/StressMonitorCard";
 import HRVTrendChart from "@/components/charts/HRVTrendChart";
 import HRZoneChart from "@/components/charts/HRZoneChart";
 import SleepDebtChart from "@/components/charts/SleepDebtChart";
+import SkeletonCard from "@/components/ui/SkeletonCard";
 import { useChartData } from "@/lib/useChartData";
 import { useDashboardStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
+import { computeStrainFromZones } from "@/lib/transforms";
+import { mockStressEvents } from "@/lib/mockData";
 
 export default function OverviewPage() {
   const router = useRouter();
@@ -24,7 +25,15 @@ export default function OverviewPage() {
     skinTemp,
     acuteStress,
   } = useChartData();
-  const { liveData, settings } = useDashboardStore();
+  const { liveData, settings, dataMode, isLoadingLiveData } = useDashboardStore();
+
+  const strainScore = useMemo(() => {
+    if (dataMode === "sample") return 14.2;
+    const zones = liveData?.heart_rate ?? [];
+    if (!zones.length) return 0;
+    const maxHR = settings.maxHR || 185;
+    return computeStrainFromZones(zones, maxHR);
+  }, [liveData, dataMode, settings.maxHR]);
 
   const formattedDate = useMemo(() => {
     if (dateOffset === 0) return "Today";
@@ -62,16 +71,20 @@ export default function OverviewPage() {
   // Derive metrics for Stress Monitor
   const stressScore = Math.min(3.0, Math.max(0.1, (stressCount * 0.3)));
   const stressLabel = stressScore > 2.0 ? "HIGH" : stressScore > 1.0 ? "MEDIUM" : "LOW";
-  let stressPeak = "4:15 PM";
-  if (acuteStress.length > 0) {
-    const lastEvent = acuteStress[acuteStress.length - 1];
-    if (lastEvent?.start) {
-      try {
-        const dateObj = new Date(lastEvent.start);
-        stressPeak = dateObj.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-      } catch (e) {}
-    }
-  }
+
+  const peakStressEvent = useMemo(() => {
+    const events = dataMode === "live" ? (liveData?.derived?.acute_stress ?? []) : mockStressEvents;
+    if (!events.length) return { score: 0, time: "--" };
+    const peak = events.reduce((max: any, e: any) => {
+      const eScore = e.hr_peak || e.score || 0;
+      const maxScore = max.hr_peak || max.score || 0;
+      return eScore > maxScore ? e : max;
+    }, events[0]);
+    return {
+      score: peak.hr_peak || peak.score || 0,
+      time: new Date(peak.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    };
+  }, [liveData, dataMode]);
 
   return (
     <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
@@ -87,63 +100,97 @@ export default function OverviewPage() {
 
         {/* LEFT: charts */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <HRVTrendChart />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-            <HRZoneChart />
-            <SleepDebtChart />
-          </div>
+          {isLoadingLiveData
+            ? <SkeletonCard height={300} />
+            : <HRVTrendChart />
+          }
+
+          {isLoadingLiveData
+            ? <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+                <SkeletonCard height={260} />
+                <SkeletonCard height={260} />
+              </div>
+            : <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+                <HRZoneChart />
+                <SleepDebtChart />
+              </div>
+          }
         </div>
 
-        {/* RIGHT: scores + monitor cards */}
+        {/* RIGHT: scores + monitor metrics in a single unified card */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Three rings stacked */}
           <div style={{
-            background: "var(--bg-surface)",
-            border: "0.5px solid var(--border-soft)",
+            background: "var(--bg-card)",
+            border: "0.5px solid var(--border-subtle)",
             borderRadius: 16,
             padding: "24px 20px",
             display: "flex",
-            justifyContent: "space-around",
-            alignItems: "center",
+            flexDirection: "column",
+            gap: 24,
           }}>
-            <WhoopRing
-              value={sleepEfficiency || 93}
-              label="SLEEP"
-              unit="%"
-              color="var(--chart-sleep)"
-              size={100}
-              onClick={() => router.push("/sleep")}
-            />
-            <WhoopRing
-              value={recoveryScore || 76}
-              label="RECOVERY"
-              unit="%"
-              color="var(--chart-hrv)"
-              size={120}
-              onClick={() => router.push("/recovery")}
-            />
-            <WhoopRing
-              value={14.2}
-              label="STRAIN"
-              unit=""
-              color="var(--chart-hr)"
-              size={100}
-              max={21}
-            />
-          </div>
+            {/* Three rings */}
+            <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
+              <WhoopRing
+                value={sleepEfficiency || 93}
+                label="SLEEP"
+                unit="%"
+                color="var(--chart-sleep)"
+                size={100}
+                onClick={() => router.push("/sleep")}
+              />
+              <WhoopRing
+                value={recoveryScore || 76}
+                label="RECOVERY"
+                unit="%"
+                color="var(--chart-hrv)"
+                size={120}
+                onClick={() => router.push("/recovery")}
+              />
+              <WhoopRing
+                value={strainScore}
+                label="STRAIN"
+                unit=""
+                color="var(--chart-hr)"
+                size={100}
+                max={21}
+              />
+            </div>
 
-          <HealthMonitorCard
-            metricsInRange={metricsInRange}
-            totalMetrics={totalMetrics}
-            onClick={() => router.push("/health-monitor")}
-          />
-          <StressMonitorCard
-            score={stressScore}
-            label={stressLabel}
-            peakTime={stressPeak}
-            onClick={() => router.push("/stress")}
-          />
+            {/* Divider */}
+            <div style={{ height: "0.5px", background: "var(--border-subtle)" }} />
+
+            {/* Health Monitor row */}
+            <div 
+              onClick={() => router.push("/health-monitor")}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+              className="hover:opacity-80 transition-opacity"
+            >
+              <span style={{ fontSize: 11, color: "var(--text-secondary)", letterSpacing: "0.08em" }}>HEALTH MONITOR</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12, color: "var(--accent-primary)", fontWeight: 500 }}>
+                  {metricsInRange === totalMetrics ? "WITHIN RANGE" : "OUT OF RANGE"}
+                </span>
+                <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{metricsInRange}/{totalMetrics}</span>
+              </div>
+            </div>
+
+            {/* Stress Monitor row */}
+            <div 
+              onClick={() => router.push("/stress")}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+              className="hover:opacity-80 transition-opacity"
+            >
+              <span style={{ fontSize: 11, color: "var(--text-secondary)", letterSpacing: "0.08em" }}>STRESS MONITOR</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: stressLabel === "LOW" ? "var(--accent-primary)" : stressLabel === "MEDIUM" ? "var(--accent-amber)" : "var(--accent-red)"
+                }}>{stressScore.toFixed(1)}</span>
+                <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{peakStressEvent.time}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

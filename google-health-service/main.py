@@ -32,17 +32,13 @@ from derived_metrics import (
     calculate_vo2_max_series,
     identify_acute_stress,
 )
-from extractor import (
-    fetch_daily_hrv,
-    fetch_daily_resting_hr,
-    fetch_daily_spo2,
-    fetch_heart_rate,
-    fetch_hrv,
-    fetch_sleep,
-    fetch_sleep_temp,
-    fetch_spo2,
-    fetch_steps,
-)
+from extractor import fetch_all
+
+def _unwrap(result, name: str) -> list:
+    if isinstance(result, Exception):
+        logger.error(f"{name} fetch failed: {result}")
+        return []
+    return result or []
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -342,19 +338,24 @@ async def get_health_data() -> JSONResponse:
         credentials = await get_credentials()
         date_range = {"start_date": start_date_str, "end_date": end_date_str}
         
-        # Fetch all data streams
-        heart_rate = fetch_heart_rate(credentials, date_range)
-        hrv = await fetch_hrv(credentials, date_range)
-        spo2 = fetch_spo2(credentials, date_range)
-        steps = fetch_steps(credentials, date_range)
-        daily_hrv = await fetch_daily_hrv(credentials, date_range)
-        daily_spo2 = await fetch_daily_spo2(credentials, date_range)
-        daily_resting_hr = await fetch_daily_resting_hr(credentials, date_range)
-        sleep_temp = await fetch_sleep_temp(credentials, date_range)
-        sleep = fetch_sleep(credentials, date_range)
+        # Fetch all data streams in parallel
+        results = await fetch_all(credentials, date_range)
+        heart_rate = _unwrap(results[0], "heart_rate")
+        spo2 = _unwrap(results[1], "spo2")
+        steps = _unwrap(results[2], "steps")
+        daily_hrv = _unwrap(results[3], "daily_hrv")
+        daily_spo2 = _unwrap(results[4], "daily_spo2")
+        daily_resting_hr = _unwrap(results[5], "daily_resting_hr")
+        sleep_temp = _unwrap(results[6], "sleep_temp")
+        sleep = _unwrap(results[7], "sleep")
+
+        hrv = daily_hrv
 
         # Run derived metrics calculations
         ans_balance = []
+        if not isinstance(hrv, list):
+            logger.error(f"daily_hrv returned unexpected type: {type(hrv)} — skipping ANS calculation")
+            hrv = []
         try:
             ans_balance = calculate_ans_balance(hrv)
         except Exception as e:
@@ -378,11 +379,10 @@ async def get_health_data() -> JSONResponse:
         except Exception as e:
             logger.error(f"Auto-sync calculate_sleep_debt_series failed: {e}")
 
-        # Build compliance payload: 'hrv' contains daily_hrv for trends, 'raw_hrv' keeps intraday
+        # Build compliance payload: 'hrv' contains daily_hrv for trends
         payload = {
             "heart_rate": heart_rate,
             "hrv": daily_hrv,
-            "raw_hrv": hrv,
             "spo2": spo2,
             "daily_spo2": daily_spo2,
             "daily_resting_hr": daily_resting_hr,
@@ -465,18 +465,24 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
     # ── Fetch all raw data ────────────────────────────────────────────────────
     logger.info("Fetching raw data from Google Health API v4...")
 
-    heart_rate = fetch_heart_rate(credentials, date_range)
-    hrv = await fetch_hrv(credentials, date_range)
-    spo2 = fetch_spo2(credentials, date_range)
-    steps = fetch_steps(credentials, date_range)
-    daily_hrv = await fetch_daily_hrv(credentials, date_range)
-    daily_spo2 = await fetch_daily_spo2(credentials, date_range)
-    daily_resting_hr = await fetch_daily_resting_hr(credentials, date_range)
-    sleep_temp = await fetch_sleep_temp(credentials, date_range)
-    sleep = fetch_sleep(credentials, date_range)
+    # Fetch all data streams in parallel
+    results = await fetch_all(credentials, date_range)
+    heart_rate = _unwrap(results[0], "heart_rate")
+    spo2 = _unwrap(results[1], "spo2")
+    steps = _unwrap(results[2], "steps")
+    daily_hrv = _unwrap(results[3], "daily_hrv")
+    daily_spo2 = _unwrap(results[4], "daily_spo2")
+    daily_resting_hr = _unwrap(results[5], "daily_resting_hr")
+    sleep_temp = _unwrap(results[6], "sleep_temp")
+    sleep = _unwrap(results[7], "sleep")
+
+    hrv = daily_hrv
 
     # ── Run derived metrics ───────────────────────────────────────────────────
     ans_balance = []
+    if not isinstance(hrv, list):
+        logger.error(f"daily_hrv returned unexpected type: {type(hrv)} — skipping ANS calculation")
+        hrv = []
     try:
         ans_balance = calculate_ans_balance(hrv)
     except Exception as e:
@@ -504,7 +510,6 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
     payload = {
         "heart_rate": heart_rate,
         "hrv": daily_hrv,  # Compliance: HRV maps to daily rollup trend in frontend
-        "raw_hrv": hrv,
         "spo2": spo2,
         "daily_spo2": daily_spo2,
         "daily_resting_hr": daily_resting_hr,

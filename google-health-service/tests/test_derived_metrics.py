@@ -16,7 +16,14 @@ def test_ans_balance_empty(empty_hrv):
     assert calculate_ans_balance(None) == []
 
 def test_ans_balance_single_day(single_day_hrv):
-    assert calculate_ans_balance(single_day_hrv) == []
+    results = calculate_ans_balance(single_day_hrv)
+    assert isinstance(results, list)
+    assert len(results) == 10
+    for record in results:
+        assert record["date"] == "2026-06-19"
+        assert "parasympathetic" in record
+        assert "sympathetic" in record
+        assert "rmssd" in record
 
 def test_ans_balance_valid(multiday_hrv):
     results = calculate_ans_balance(multiday_hrv)
@@ -24,15 +31,11 @@ def test_ans_balance_valid(multiday_hrv):
     assert len(results) > 0
     for record in results:
         assert "date" in record
-        assert "lf" in record
-        assert "hf" in record
-        assert "ratio" in record
-        assert "lf_power" in record
-        assert "hf_power" in record
-        assert "lf_hf_ratio" in record
-        assert record["lf"] >= 0.0
-        assert record["hf"] >= 0.0
-        assert record["ratio"] >= 0.0
+        assert "parasympathetic" in record
+        assert "sympathetic" in record
+        assert "rmssd" in record
+        assert 0.0 <= record["parasympathetic"] <= 100.0
+        assert 0.0 <= record["sympathetic"] <= 100.0
 
 def test_ans_balance_with_nan(hrv_with_nan):
     # This shouldn't raise any exception, thanks to error handling in interpolator / periodogram

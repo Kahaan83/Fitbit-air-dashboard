@@ -7,6 +7,7 @@ Processes results to fit standard dashboard schema:
 """
 
 import logging
+import asyncio
 import os
 import re
 from typing import Any
@@ -50,7 +51,7 @@ def fetch_heart_rate(
     client = HealthAPIClient(credentials.token)
     return client.get_heart_rate(start_date, end_date)
 
-def fetch_intraday_hrv(
+async def fetch_intraday_hrv(
     credentials: Credentials,
     date_range: dict[str, str],
 ) -> list[dict[str, Any]]:
@@ -58,7 +59,7 @@ def fetch_intraday_hrv(
     _validate_date(date_range.get("start_date", ""), "start_date")
     _validate_date(date_range.get("end_date", ""), "end_date")
     client = HealthAPIClient(credentials.token)
-    return client.get_intraday_hrv(date_range["start_date"], date_range["end_date"])
+    return await client.get_intraday_hrv(date_range["start_date"], date_range["end_date"])
 
 async def fetch_hrv(
     credentials: Credentials,
@@ -142,3 +143,45 @@ def fetch_sleep(
     _validate_date(date_range.get("end_date", ""), "end_date")
     client = HealthAPIClient(credentials.token)
     return client.get_sleep(date_range["start_date"], date_range["end_date"])
+
+
+async def fetch_all(
+    credentials: Credentials,
+    date_range: dict[str, str],
+) -> tuple:
+    """Fetch all 9 physiological data streams in parallel using asyncio.gather."""
+    _validate_date(date_range.get("start_date", ""), "start_date")
+    _validate_date(date_range.get("end_date", ""), "end_date")
+    
+    start_date = date_range["start_date"]
+    end_date = date_range["end_date"]
+    
+    # Handle heart rate date range limit
+    try:
+        from datetime import datetime, timedelta
+        limit_days = int(os.getenv("HEART_RATE_DAYS_LIMIT", "7"))
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        if (end_dt - start_dt).days > limit_days:
+            start_date_hr = (end_dt - timedelta(days=limit_days)).strftime("%Y-%m-%d")
+            logger.info(f"Limiting heart rate range from {start_date} to {start_date_hr} (limit: {limit_days} days) to prevent timeouts.")
+        else:
+            start_date_hr = start_date
+    except Exception as e:
+        logger.warning(f"Failed to apply heart rate date range limit: {e}")
+        start_date_hr = start_date
+
+    client = HealthAPIClient(credentials.token)
+    
+    results = await asyncio.gather(
+        client.get_heart_rate(start_date_hr, end_date),
+        client.get_spo2(start_date, end_date),
+        client.get_steps(start_date, end_date),
+        client.get_daily_hrv(start_date, end_date),
+        client.get_daily_spo2(start_date, end_date),
+        client.get_daily_resting_hr(start_date, end_date),
+        client.get_sleep_temp(start_date, end_date),
+        client.get_sleep(start_date, end_date),
+        return_exceptions=True
+    )
+    return results

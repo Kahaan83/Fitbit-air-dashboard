@@ -36,6 +36,7 @@ interface DashboardState {
   setSyncEndDate: (date: string) => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (open: boolean) => void;
+  userAge: number;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -54,10 +55,16 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
     ],
   },
+  userAge: 28,
   updateSettings: (newSettings) =>
-    set((state) => ({
-      settings: { ...state.settings, ...newSettings },
-    })),
+    set((state) => {
+      const nextSettings = { ...state.settings, ...newSettings };
+      const updates: any = { settings: nextSettings };
+      if (newSettings.age !== undefined) {
+        updates.userAge = newSettings.age;
+      }
+      return updates;
+    }),
   liveData: null,
   setLiveData: (data) => set({ liveData: data }),
   isLoadingLiveData: false,

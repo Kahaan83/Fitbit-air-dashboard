@@ -20,7 +20,7 @@ export default function Sidebar() {
       width: 220,
       minHeight: "100vh",
       background: "var(--bg-surface)",
-      borderRight: "0.5px solid var(--border-soft)",
+      borderRight: "0.5px solid var(--border-subtle)",
       display: "flex",
       flexDirection: "column",
       padding: "24px 0",

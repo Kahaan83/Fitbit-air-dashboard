@@ -119,12 +119,12 @@ def mock_client():
     from unittest.mock import MagicMock
     with patch("extractor.HealthAPIClient") as MockClient:
         instance = MockClient.return_value
-        instance.get_heart_rate = MagicMock(return_value=[{"timestamp": "2026-01-15T08:00:00Z", "value": 72}])
-        instance.get_intraday_hrv = MagicMock(return_value=[{"timestamp": "2026-01-15T02:00:00Z", "value": 45.2}])
+        instance.get_heart_rate = AsyncMock(return_value=[{"timestamp": "2026-01-15T08:00:00Z", "value": 72}])
+        instance.get_intraday_hrv = AsyncMock(return_value=[{"timestamp": "2026-01-15T02:00:00Z", "value": 45.2}])
         instance.get_hrv = AsyncMock(return_value=[{"timestamp": "2026-01-15T02:00:00Z", "value": 45.2}])
-        instance.get_spo2 = MagicMock(return_value=[])
-        instance.get_sleep = MagicMock(return_value=[])
-        instance.get_steps = MagicMock(return_value=[])
+        instance.get_spo2 = AsyncMock(return_value=[])
+        instance.get_sleep = AsyncMock(return_value=[])
+        instance.get_steps = AsyncMock(return_value=[])
         instance.get_daily_hrv = AsyncMock(return_value=[])
         instance.get_daily_spo2 = AsyncMock(return_value=[])
         instance.get_daily_resting_hr = AsyncMock(return_value=[])

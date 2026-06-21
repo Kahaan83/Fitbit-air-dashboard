@@ -31,13 +31,16 @@ export function HRZoneChart() {
   let z4 = 0; // Threshold
   let z5 = 0; // Max
 
-  if (dataMode === "sample" || heartRateData.length === 0) {
+  let hasData = false;
+
+  if (dataMode === "sample") {
+    hasData = true;
     z1 = 45;
     z2 = 25;
     z3 = 18;
     z4 = 9;
     z5 = 3;
-  } else {
+  } else if (heartRateData.length > 0) {
     heartRateData.forEach((d: any) => {
       const val = typeof d.value === "number" ? d.value : parseFloat(d.value);
       if (!isNaN(val)) {
@@ -52,18 +55,32 @@ export function HRZoneChart() {
 
     const total = z1 + z2 + z3 + z4 + z5;
     if (total > 0) {
+      hasData = true;
       z1 = Math.round((z1 / total) * 100 * 10) / 10;
       z2 = Math.round((z2 / total) * 100 * 10) / 10;
       z3 = Math.round((z3 / total) * 100 * 10) / 10;
       z4 = Math.round((z4 / total) * 100 * 10) / 10;
       z5 = Math.round((z5 / total) * 100 * 10) / 10;
-    } else {
-      z1 = 45;
-      z2 = 25;
-      z3 = 18;
-      z4 = 9;
-      z5 = 3;
     }
+  }
+
+  if (!hasData && dataMode === "live") {
+    return (
+      <div
+        data-testid="hr-zone-chart"
+        className="rounded-2xl border-[0.5px] border-[var(--border-soft)] bg-[var(--bg-card)] p-[20px_24px] min-w-0 flex flex-col justify-between h-[260px]"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
+            HEART RATE ZONES
+          </span>
+          <MetricInfo metricKey="heart_rate" />
+        </div>
+        <div className="h-40 w-full mt-2 flex items-center justify-center">
+          <EmptyChartState title="No heart rate data" subtitle="Sync a date range with recorded activity" />
+        </div>
+      </div>
+    );
   }
 
   const chartData = [
@@ -76,8 +93,6 @@ export function HRZoneChart() {
       zone5: z5,
     },
   ];
-
-  const hasData = dataMode === "sample" || (heartRateData && heartRateData.length > 0);
 
   return (
     <div

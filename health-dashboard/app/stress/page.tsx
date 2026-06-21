@@ -1,17 +1,33 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft, Zap, Sparkles } from "lucide-react";
 import { useChartData } from "@/lib/useChartData";
 import { useDashboardStore } from "@/lib/store";
+import { mockStressEvents } from "@/lib/mockData";
 
 export default function StressMonitorPage() {
   const { acuteStress } = useChartData();
+  const { dataMode, liveData } = useDashboardStore();
   const stressCount = acuteStress.length;
 
   const stressScore = Math.min(3.0, Math.max(0.1, (stressCount * 0.3)));
   const stressLabel = stressScore > 2.0 ? "HIGH" : stressScore > 1.0 ? "MEDIUM" : "LOW";
+
+  const peakStressEvent = useMemo(() => {
+    const events = dataMode === "live" ? (liveData?.derived?.acute_stress ?? []) : mockStressEvents;
+    if (!events.length) return { score: 0, time: "--" };
+    const peak = events.reduce((max: any, e: any) => {
+      const eScore = e.hr_peak || e.score || 0;
+      const maxScore = max.hr_peak || max.score || 0;
+      return eScore > maxScore ? e : max;
+    }, events[0]);
+    return {
+      score: peak.hr_peak || peak.score || 0,
+      time: new Date(peak.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    };
+  }, [liveData, dataMode]);
 
   const getLabelColor = (lvl: string) => {
     switch (lvl.toUpperCase()) {
@@ -96,7 +112,7 @@ export default function StressMonitorPage() {
               <Sparkles className="h-5 w-5 text-[var(--accent-green)]" />
               <div>
                 <span className="text-xs text-[var(--text-secondary)] block">Peak Time</span>
-                <span className="text-sm font-bold text-[var(--text-primary)]">4:15 PM</span>
+                <span className="text-sm font-bold text-[var(--text-primary)]">{peakStressEvent.time}</span>
               </div>
             </div>
           </div>

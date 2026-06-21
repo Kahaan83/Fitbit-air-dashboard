@@ -17,128 +17,48 @@ from scipy.integrate import trapezoid as trapz
 logger = logging.getLogger("derived_metrics")
 
 
-def calculate_ans_balance(hrv_series: list[dict]) -> list[dict]:
+def calculate_ans_balance(hrv_data: list[dict]) -> list[dict]:
     """
-    Computes LF/HF autonomic nervous system balance via frequency-domain analysis.
-
-    Args:
-        hrv_series: List of dicts from fetch_hrv(), each with keys
-                    'timestamp' (ISO8601 str) and 'value' (float, RMSSD in ms).
-
-    Returns:
-        List of dicts: [{"date": "YYYY-MM-DD", "lf_power": float, "lf": float,
-                         "hf_power": float, "hf": float, "lf_hf_ratio": float, "ratio": float}]
-        LF band: 0.04–0.15 Hz. HF band: 0.15–0.4 Hz.
-        Uses FFT on RR-interval series derived from RMSSD approximation.
+    Returns a simplified ANS proxy from daily RMSSD values.
+    Higher RMSSD = more parasympathetic dominance (recovery-favored).
+    Lower RMSSD = more sympathetic dominance (stress/load).
+    Not true LF/HF spectral analysis — requires raw RR intervals for that.
     """
-    if not hrv_series or len(hrv_series) < 5:
-        logger.warning("calculate_ans_balance: Insufficient data for frequency-domain LF/HF calculation.")
+    if not hrv_data:
         return []
-
-    if any(r.get("data_type") == "DAILY_HEART_RATE_VARIABILITY" for r in hrv_series):
-        logger.warning("calculate_ans_balance: Received daily aggregates instead of intraday HRV. LF/HF analysis requires intraday samples.")
-        return []
-
-    # Check for single day of data (insufficient for FFT)
-    unique_dates = {r.get("timestamp", "").split("T")[0] for r in hrv_series if r.get("timestamp")}
-    if len(unique_dates) < 2:
-        logger.warning("calculate_ans_balance: Single day of data is insufficient for FFT.")
-        return []
-
-    # Group measurements by date
-    grouped = defaultdict(list)
-    for record in hrv_series:
-        ts_str = record.get("timestamp", "")
-        if not ts_str:
-            continue
-        date_str = ts_str.split("T")[0]
-        val = record.get("value")
-        if val is None:
-            continue
-
-        try:
-            # Parse timestamp to epoch seconds for time-spacing
-            # Handle formats like "2026-06-17T12:00:00Z" or similar
-            ts_str = ts_str.replace("Z", "+00:00")
-            dt = datetime.fromisoformat(ts_str)
-            t_seconds = dt.timestamp()
-            grouped[date_str].append((t_seconds, float(val)))
-        except Exception as e:
-            logger.warning(f"calculate_ans_balance: Error parsing record: {e}")
-            continue
-
-    ans_results = []
-
-    for date_str, samples in grouped.items():
-        # Sort samples by time
-        samples.sort(key=lambda x: x[0])
-        if len(samples) < 5:
-            # Not enough samples for a reliable spectral analysis; skip or output default
-            logger.debug(f"calculate_ans_balance: Skipping {date_str} due to low sample count ({len(samples)})")
-            continue
-
-        times = np.array([s[0] for s in samples])
-        rmssd_vals = np.array([s[1] for s in samples])
-
-        # Normalize times relative to the first sample of the day
-        t_rel = times - times[0]
         
-        # Check if the time range is non-zero
-        if t_rel[-1] <= 10.0:
+    results = []
+    for entry in hrv_data:
+        if not entry:
             continue
-
-        # Convert RMSSD to approximate RR interval (ms)
-        # Formula: RR_ms = 1000 / (60 / rmssd)
-        # We clamp RMSSD to prevent division by zero or negative values
-        clamped_rmssd = np.clip(rmssd_vals, 5.0, 200.0)
-        rr_ms = 1000.0 / (60.0 / clamped_rmssd)
+        rmssd = entry.get("rmssd") or entry.get("value")
+        if rmssd is None:
+            continue
+            
+        # Extract date from timestamp or date field
+        date_val = entry.get("date") or entry.get("timestamp")
+        if date_val:
+            date_str = date_val.split("T")[0]
+        else:
+            continue
 
         try:
-            # Resample onto a uniform 4 Hz grid (0.25 sec spacing)
-            fs = 4.0
-            t_uniform = np.arange(0.0, t_rel[-1], 0.25)
-            
-            if len(t_uniform) < 10:
-                continue
-
-            # Interpolate
-            f_interp = interp1d(t_rel, rr_ms, kind="linear", fill_value="extrapolate")
-            rr_uniform = f_interp(t_uniform)
-
-            # Detrend the signal
-            rr_detrended = rr_uniform - np.mean(rr_uniform)
-
-            # Compute Periodogram (Power Spectral Density)
-            freqs, psd = periodogram(rr_detrended, fs=fs)
-
-            # Filter indices for LF (0.04 - 0.15 Hz) and HF (0.15 - 0.40 Hz) bands
-            lf_mask = (freqs >= 0.04) & (freqs <= 0.15)
-            hf_mask = (freqs >= 0.15) & (freqs <= 0.40)
-
-            # Integrate PSD using Trapezoidal rule
-            # If the frequency masks are empty, fallback to 0.0
-            lf_power = float(trapz(psd[lf_mask], freqs[lf_mask])) if np.any(lf_mask) else 0.0
-            hf_power = float(trapz(psd[hf_mask], freqs[hf_mask])) if np.any(hf_mask) else 0.0
-
-            # Sympathovagal balance ratio (sympathetic / parasympathetic)
-            lf_hf_ratio = lf_power / hf_power if hf_power > 0 else 1.0
-
-            ans_results.append({
-                "date": date_str,
-                "lf": round(lf_power, 2),
-                "lf_power": round(lf_power, 2),
-                "hf": round(hf_power, 2),
-                "hf_power": round(hf_power, 2),
-                "ratio": round(lf_hf_ratio, 2),
-                "lf_hf_ratio": round(lf_hf_ratio, 2),
-            })
-        except Exception as e:
-            logger.warning(f"calculate_ans_balance: Math error for date {date_str}: {e}")
+            rmssd_float = float(rmssd)
+        except (ValueError, TypeError):
             continue
 
-    # Sort results chronologically
-    ans_results.sort(key=lambda x: x["date"])
-    return ans_results
+        # Parasympathetic proxy: normalized RMSSD (typical range 20-80ms)
+        parasympathetic = min(100, max(0, (rmssd_float - 20) / 60 * 100))
+        sympathetic = 100 - parasympathetic
+        results.append({
+            "date": date_str,
+            "parasympathetic": round(parasympathetic, 1),
+            "sympathetic": round(sympathetic, 1),
+            "rmssd": round(rmssd_float, 1),
+        })
+    # Group by date and keep only the latest/average if multiple exist for a day (or just sort)
+    results.sort(key=lambda x: x["date"])
+    return results
 
 
 def calculate_vo2_max(heart_rate_data: list[dict], hr_max: float = 185.0) -> float | None:
