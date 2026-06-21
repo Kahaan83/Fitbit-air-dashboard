@@ -3,10 +3,18 @@
 import React, { useState, useEffect } from "react";
 import SettingsModal from "./SettingsModal";
 import ToastContainer from "./ToastContainer";
+import SyncProgressBar from "./SyncProgressBar";
 import { useDashboardStore } from "@/lib/store";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  const { dataMode, setLiveData, setLastSync, theme, isSettingsOpen, setIsSettingsOpen } = useDashboardStore();
+  const { dataMode, setLiveData, setLastSync, theme, setTheme, isSettingsOpen, setIsSettingsOpen } = useDashboardStore();
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme") as "premium" | "whoop" | null;
+    if (saved === "whoop" || saved === "premium") {
+      setTheme(saved);
+    }
+  }, [setTheme]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -37,6 +45,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-base)] text-[var(--text-primary)] bg-radial-glow font-sans">
       <ToastContainer />
+      <SyncProgressBar />
       {children}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>

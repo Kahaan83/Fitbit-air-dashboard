@@ -25,15 +25,19 @@ export default function OverviewPage() {
     skinTemp,
     acuteStress,
   } = useChartData();
-  const { liveData, settings, dataMode, isLoadingLiveData } = useDashboardStore();
+  const { liveData, previousLiveData, settings, dataMode, isLoadingLiveData } = useDashboardStore();
+
+  const displayLiveData = (dataMode === "live" && isLoadingLiveData)
+    ? (previousLiveData ?? liveData)
+    : liveData;
 
   const strainScore = useMemo(() => {
     if (dataMode === "sample") return 14.2;
-    const zones = liveData?.heart_rate ?? [];
+    const zones = displayLiveData?.heart_rate ?? [];
     if (!zones.length) return 0;
     const maxHR = settings.maxHR || 185;
     return computeStrainFromZones(zones, maxHR);
-  }, [liveData, dataMode, settings.maxHR]);
+  }, [displayLiveData, dataMode, settings.maxHR]);
 
   const formattedDate = useMemo(() => {
     if (dateOffset === 0) return "Today";
@@ -58,7 +62,7 @@ export default function OverviewPage() {
     ? (latestSpO2Readings[latestSpO2Readings.length - 1]?.value || 97.4)
     : 97.4;
   const latestTemp = skinTemp.length > 0 ? (skinTemp[skinTemp.length - 1]?.value || 0) : 0.12;
-  const rhrArray = liveData?.daily_resting_hr || [];
+  const rhrArray = displayLiveData?.daily_resting_hr || [];
   const latestRHR = rhrArray.length > 0 ? (rhrArray[rhrArray.length - 1]?.value || settings.restingHR) : settings.restingHR;
 
   const totalMetrics = 4;
@@ -73,7 +77,7 @@ export default function OverviewPage() {
   const stressLabel = stressScore > 2.0 ? "HIGH" : stressScore > 1.0 ? "MEDIUM" : "LOW";
 
   const peakStressEvent = useMemo(() => {
-    const events = dataMode === "live" ? (liveData?.derived?.acute_stress ?? []) : mockStressEvents;
+    const events = dataMode === "live" ? (displayLiveData?.derived?.acute_stress ?? []) : mockStressEvents;
     if (!events.length) return { score: 0, time: "--" };
     const peak = events.reduce((max: any, e: any) => {
       const eScore = e.hr_peak || e.score || 0;
@@ -84,7 +88,7 @@ export default function OverviewPage() {
       score: peak.hr_peak || peak.score || 0,
       time: new Date(peak.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
     };
-  }, [liveData, dataMode]);
+  }, [displayLiveData, dataMode]);
 
   return (
     <div style={{ background: "var(--bg-base)", minHeight: "100vh" }}>
@@ -127,6 +131,8 @@ export default function OverviewPage() {
             display: "flex",
             flexDirection: "column",
             gap: 24,
+            opacity: isLoadingLiveData ? 0.5 : 1,
+            transition: "opacity 0.2s ease-in-out",
           }}>
             {/* Three rings */}
             <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>

@@ -12,16 +12,18 @@ Run with: uvicorn main:app --reload --port 8000
 
 import json
 import logging
+import hashlib
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 from typing import Any
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, field_validator, ValidationError
 from models import HealthDataResponse
 
@@ -32,13 +34,169 @@ from derived_metrics import (
     calculate_vo2_max_series,
     identify_acute_stress,
 )
-from extractor import fetch_all
+from client import HealthAPIClient
+from extractor import fetch_all, downsample_to_minutes
+import cache
 
 def _unwrap(result, name: str) -> list:
     if isinstance(result, Exception):
         logger.error(f"{name} fetch failed: {result}")
         return []
     return result or []
+
+def _hash_inputs(*data_lists) -> str:
+    combined = json.dumps(data_lists, sort_keys=True, default=str)
+    return hashlib.md5(combined.encode()).hexdigest()
+
+def _date_range(start: str, end: str) -> list[str]:
+    s = date.fromisoformat(start)
+    e = date.fromisoformat(end)
+    return [(s + timedelta(days=i)).isoformat() for i in range((e-s).days + 1)]
+
+def slice_by_day(data_list: list[dict]) -> dict[str, list[dict]]:
+    from collections import defaultdict
+    by_day = defaultdict(list)
+    for p in data_list:
+        ts = p.get("timestamp") or p.get("date") or p.get("startTime", "")
+        if ts:
+            day_str = ts[:10]  # Extracts YYYY-MM-DD
+            by_day[day_str].append(p)
+    return by_day
+
+def assemble_payload(day_dicts: list[dict]) -> dict[str, list]:
+    payload = {
+        "heart_rate": [],
+        "hrv": [],
+        "spo2": [],
+        "daily_spo2": [],
+        "daily_resting_hr": [],
+        "sleep_temp": [],
+        "sleep": [],
+        "steps": [],
+    }
+    for day_data in day_dicts:
+        payload["heart_rate"].extend(day_data.get("heart_rate", []))
+        payload["hrv"].extend(day_data.get("daily_hrv", []))
+        payload["spo2"].extend(day_data.get("spo2", []))
+        payload["daily_spo2"].extend(day_data.get("daily_spo2", []))
+        payload["daily_resting_hr"].extend(day_data.get("daily_resting_hr", []))
+        payload["sleep_temp"].extend(day_data.get("sleep_temp", []))
+        payload["sleep"].extend(day_data.get("sleep", []))
+        payload["steps"].extend(day_data.get("steps", []))
+    return payload
+
+
+def _assemble_and_derive_payload(all_days: list[str]) -> dict:
+    raw_payload = assemble_payload([
+        _cache["days"][d] for d in all_days if d in _cache["days"]
+    ])
+
+    daily_hrv = raw_payload["hrv"]
+    heart_rate = raw_payload["heart_rate"]
+    sleep = raw_payload["sleep"]
+    steps = raw_payload["steps"]
+    daily_resting_hr = raw_payload["daily_resting_hr"]
+
+    # Hash inputs to check if derived metrics need to be recomputed
+    raw_hash = _hash_inputs(daily_hrv, heart_rate, sleep, steps, daily_resting_hr)
+
+    if _cache.get("derived_hash") == raw_hash and "derived" in _cache:
+        derived = _cache["derived"]
+    else:
+        ans_balance = []
+        if not isinstance(daily_hrv, list):
+            logger.error(f"daily_hrv returned unexpected type: {type(daily_hrv)} — skipping ANS calculation")
+            hrv_list = []
+        else:
+            hrv_list = daily_hrv
+        try:
+            ans_balance = calculate_ans_balance(hrv_list)
+        except Exception as e:
+            logger.error(f"calculate_ans_balance failed: {e}")
+
+        vo2_max = []
+        try:
+            vo2_max = calculate_vo2_max_series(daily_resting_hr, USER_MAX_HR)
+        except Exception as e:
+            logger.error(f"calculate_vo2_max_series failed: {e}")
+
+        acute_stress = []
+        try:
+            acute_stress = identify_acute_stress(heart_rate, steps, USER_RESTING_HR)
+        except Exception as e:
+            logger.error(f"identify_acute_stress failed: {e}")
+
+        sleep_debt = []
+        try:
+            sleep_debt = calculate_sleep_debt_series(sleep, USER_TARGET_SLEEP_HOURS)
+        except Exception as e:
+            logger.error(f"calculate_sleep_debt_series failed: {e}")
+
+        derived = {
+            "ans_balance": ans_balance,
+            "vo2_max": vo2_max,
+            "acute_stress": acute_stress,
+            "sleep_debt": sleep_debt,
+        }
+        _cache["derived"] = derived
+        _cache["derived_hash"] = raw_hash
+
+    payload = {
+        **raw_payload,
+        "derived": derived,
+    }
+    return payload
+
+
+async def _background_sync_range(missing_days: list[str]):
+    if not missing_days:
+        return
+    fetch_start = missing_days[0]
+    fetch_end = missing_days[-1]
+    
+    logger.info(f"Syncing missing range: {fetch_start} to {fetch_end}")
+    credentials = await get_credentials()
+
+    # Fetch all data streams in parallel
+    client = HealthAPIClient(credentials.token)
+    try:
+        results = await fetch_all(client, {"start_date": fetch_start, "end_date": fetch_end})
+    finally:
+        await client.close()
+
+    heart_rate = _unwrap(results[0], "heart_rate")
+    spo2 = _unwrap(results[1], "spo2")
+    steps = _unwrap(results[2], "steps")
+    daily_hrv = _unwrap(results[3], "daily_hrv")
+    daily_spo2 = _unwrap(results[4], "daily_spo2")
+    daily_resting_hr = _unwrap(results[5], "daily_resting_hr")
+    sleep_temp = _unwrap(results[6], "sleep_temp")
+    sleep = _unwrap(results[7], "sleep")
+
+    hr_by_day = slice_by_day(heart_rate)
+    spo2_by_day = slice_by_day(spo2)
+    steps_by_day = slice_by_day(steps)
+    hrv_by_day = slice_by_day(daily_hrv)
+    daily_spo2_by_day = slice_by_day(daily_spo2)
+    resting_hr_by_day = slice_by_day(daily_resting_hr)
+    sleep_temp_by_day = slice_by_day(sleep_temp)
+    sleep_by_day = slice_by_day(sleep)
+
+    fetched_days = _date_range(fetch_start, fetch_end)
+    for d in fetched_days:
+        day_data = {
+            "heart_rate": hr_by_day.get(d, []),
+            "spo2": spo2_by_day.get(d, []),
+            "steps": steps_by_day.get(d, []),
+            "daily_hrv": hrv_by_day.get(d, []),
+            "daily_spo2": daily_spo2_by_day.get(d, []),
+            "daily_resting_hr": resting_hr_by_day.get(d, []),
+            "sleep_temp": sleep_temp_by_day.get(d, []),
+            "sleep": sleep_by_day.get(d, []),
+        }
+        cache.set_day(d, day_data)
+        _cache["days"][d] = day_data
+    _cache["synced_at"] = time.time()
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -65,6 +223,9 @@ _cache: dict[str, Any] = {
     "synced_at": None,      # ISO 8601 timestamp of last successful sync
     "auto_synced_at": None, # timestamp of last automatic background sync
     "user_synced_at": None, # timestamp of last user-triggered manual sync
+    "derived": None,
+    "derived_hash": None,
+    "days": {},             # key: "YYYY-MM-DD", value: { heart_rate: [...], hrv: [...], ... }
 }
 
 # ─── Empty response shell ─────────────────────────────────────────────────────
@@ -111,6 +272,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 
 # ─── Request / Response Models ────────────────────────────────────────────────
 class SyncRequest(BaseModel):
@@ -144,6 +307,13 @@ class BaselinesRequest(BaseModel):
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
+
+@app.on_event("startup")
+async def warm_cache():
+    from datetime import date, timedelta
+    dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(90)]
+    _cache["days"] = cache.get_days(dates)
+    logger.info(f"Cache warmed: {len(_cache['days'])} days loaded from disk")
 
 @app.post("/api/settings", summary="Update GCP credentials and user baselines")
 async def update_settings(body: SettingsRequest) -> JSONResponse:
@@ -302,7 +472,11 @@ def _validate_and_respond(payload: dict[str, Any], headers: dict[str, str]) -> J
 
 
 @app.get("/api/health-data", summary="Full raw and derived health data payload")
-async def get_health_data() -> JSONResponse:
+async def get_health_data(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    background_tasks: BackgroundTasks = None,
+) -> JSONResponse:
     """
     Returns the cached health data payload.
 
@@ -313,110 +487,71 @@ async def get_health_data() -> JSONResponse:
 
     The Cache-Control header (max-age=300) prevents excessive backend querying.
     """
-    # Return cached payload if available
-    if _cache["payload"] is not None and _cache["synced_at"] is not None:
-        synced_at = _cache["synced_at"]
-        if time.time() - synced_at > 14400:
-            stale_payload = {**_cache["payload"], "stale": True}
-            headers = {"Cache-Control": "max-age=300"}
-            return _validate_and_respond(stale_payload, headers)
-        else:
-            headers = {"Cache-Control": "max-age=300"}
-            return _validate_and_respond(_cache["payload"], headers)
+    # Resolve date range
+    if not start_date or not end_date:
+        from datetime import timedelta
+        end_date_obj = datetime.now(timezone.utc).date()
+        start_date_obj = end_date_obj - timedelta(days=30)
+        start_date_str = start_date_obj.isoformat()
+        end_date_str = end_date_obj.isoformat()
+    else:
+        start_date_str = start_date
+        end_date_str = end_date
 
-    # Cache is empty: try to run automatic sync for the past 30 days
-    from datetime import timedelta
-    end_date_obj = datetime.now(timezone.utc).date()
-    start_date_obj = end_date_obj - timedelta(days=30)
-    
-    start_date_str = start_date_obj.isoformat()
-    end_date_str = end_date_obj.isoformat()
+    # Get list of requested days
+    all_days = _date_range(start_date_str, end_date_str)
 
-    logger.info(f"Auto-syncing past 30 days: {start_date_str} to {end_date_str}")
-    
-    try:
-        credentials = await get_credentials()
-        date_range = {"start_date": start_date_str, "end_date": end_date_str}
+    # Ensure days cache contains elements
+    if "days" not in _cache:
+        _cache["days"] = {}
+
+    # Try to warm in-memory cache from database
+    missing_in_mem = [d for d in all_days if d not in _cache["days"]]
+    if missing_in_mem:
+        db_days = cache.get_days(missing_in_mem)
+        _cache["days"].update(db_days)
+
+    # Identify which days are still missing from both database and memory
+    missing_days = [d for d in all_days if d not in _cache["days"]]
+    cached_days = [d for d in all_days if d in _cache["days"]]
+
+    # Check if the OAuth token is currently valid
+    token_info = get_token_info()
+    token_valid = token_info.get("token_valid", False)
+
+    # Return cached data if any requested days are cached and we have a valid token
+    if cached_days and token_valid:
+        payload = _assemble_and_derive_payload(all_days)
         
-        # Fetch all data streams in parallel
-        results = await fetch_all(credentials, date_range)
-        heart_rate = _unwrap(results[0], "heart_rate")
-        spo2 = _unwrap(results[1], "spo2")
-        steps = _unwrap(results[2], "steps")
-        daily_hrv = _unwrap(results[3], "daily_hrv")
-        daily_spo2 = _unwrap(results[4], "daily_spo2")
-        daily_resting_hr = _unwrap(results[5], "daily_resting_hr")
-        sleep_temp = _unwrap(results[6], "sleep_temp")
-        sleep = _unwrap(results[7], "sleep")
-
-        hrv = daily_hrv
-
-        # Run derived metrics calculations
-        ans_balance = []
-        if not isinstance(hrv, list):
-            logger.error(f"daily_hrv returned unexpected type: {type(hrv)} — skipping ANS calculation")
-            hrv = []
-        try:
-            ans_balance = calculate_ans_balance(hrv)
-        except Exception as e:
-            logger.error(f"Auto-sync calculate_ans_balance failed: {e}")
-
-        vo2_max = []
-        try:
-            vo2_max = calculate_vo2_max_series(daily_resting_hr, USER_MAX_HR)
-        except Exception as e:
-            logger.error(f"Auto-sync calculate_vo2_max_series failed: {e}")
-
-        acute_stress = []
-        try:
-            acute_stress = identify_acute_stress(heart_rate, steps, USER_RESTING_HR)
-        except Exception as e:
-            logger.error(f"Auto-sync identify_acute_stress failed: {e}")
-
-        sleep_debt = []
-        try:
-            sleep_debt = calculate_sleep_debt_series(sleep, USER_TARGET_SLEEP_HOURS)
-        except Exception as e:
-            logger.error(f"Auto-sync calculate_sleep_debt_series failed: {e}")
-
-        # Build compliance payload: 'hrv' contains daily_hrv for trends
-        payload = {
-            "heart_rate": heart_rate,
-            "hrv": daily_hrv,
-            "spo2": spo2,
-            "daily_spo2": daily_spo2,
-            "daily_resting_hr": daily_resting_hr,
-            "sleep_temp": sleep_temp,
-            "sleep": sleep,
-            "steps": steps,
-            "derived": {
-                "ans_balance": ans_balance,
-                "vo2_max": vo2_max,
-                "acute_stress": acute_stress,
-                "sleep_debt": sleep_debt,
-            },
-        }
-        
+        # Schedule background refresh for missing days if any
+        if missing_days and background_tasks:
+            background_tasks.add_task(
+                _background_sync_range, missing_days
+            )
+            
+        payload["stale"] = bool(missing_days)
         _cache["payload"] = payload
-        _cache["synced_at"] = time.time()
-        _cache["auto_synced_at"] = time.time()
-        
-        # Check size bound
-        payload_size = sys.getsizeof(json.dumps(_cache["payload"]))
-        if payload_size > 50 * 1024 * 1024:
-            logger.warning("Cache payload exceeds 50MB — consider filtering the date range.")
         
         headers = {"Cache-Control": "max-age=300"}
         return _validate_and_respond(payload, headers)
-        
-    except Exception as e:
-        logger.warning(
-            f"Auto-sync on startup failed ({e}). Returning empty physiological shell."
-        )
-        # Graceful fallback to empty shell for Sample Mode
-        payload = _empty_health_payload()
-        headers = {"Cache-Control": "max-age=300"}
-        return _validate_and_respond(payload, headers)
+    else:
+        # Truly cold cache — must wait for first sync of all days
+        try:
+            await _background_sync_range(all_days)
+            payload = _assemble_and_derive_payload(all_days)
+            payload["stale"] = False
+            _cache["payload"] = payload
+            _cache["synced_at"] = time.time()
+            
+            headers = {"Cache-Control": "max-age=300"}
+            return _validate_and_respond(payload, headers)
+        except Exception as e:
+            logger.warning(
+                f"Auto-sync on startup failed ({e}). Returning empty physiological shell."
+            )
+            payload = _empty_health_payload()
+            headers = {"Cache-Control": "max-age=300"}
+            return _validate_and_respond(payload, headers)
 
 
 @app.post("/api/trigger-sync", summary="Force re-sync for a date range")
@@ -434,8 +569,8 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
     last_user_sync = _cache.get("user_synced_at")
     if last_user_sync is not None:
         elapsed = time.time() - last_user_sync
-        if elapsed < 60:
-            retry_after = int(60 - elapsed)
+        if elapsed < 10:
+            retry_after = int(10 - elapsed)
             return JSONResponse(
                 status_code=429,
                 content={
@@ -449,81 +584,28 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
         f"trigger-sync: Fetching data from {body.start_date} to {body.end_date}"
     )
 
-    # ── Authenticate ──────────────────────────────────────────────────────────
-    try:
-        credentials = await get_credentials()
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except RuntimeError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error(f"Authentication failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Authentication failed: {str(e)}")
+    all_days = _date_range(body.start_date, body.end_date)
+    if "days" not in _cache:
+        _cache["days"] = {}
+    missing_in_mem = [d for d in all_days if d not in _cache["days"]]
+    if missing_in_mem:
+        db_days = cache.get_days(missing_in_mem)
+        _cache["days"].update(db_days)
+    missing_days = [d for d in all_days if d not in _cache["days"]]
 
-    date_range = {"start_date": body.start_date, "end_date": body.end_date}
+    if missing_days:
+        try:
+            await _background_sync_range(missing_days)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        except RuntimeError as e:
+            raise HTTPException(status_code=403, detail=str(e))
+        except Exception as e:
+            logger.error(f"Authentication or sync failed: {e}")
+            raise HTTPException(status_code=503, detail=f"Sync failed: {str(e)}")
+        _cache["user_synced_at"] = time.time()
 
-    # ── Fetch all raw data ────────────────────────────────────────────────────
-    logger.info("Fetching raw data from Google Health API v4...")
-
-    # Fetch all data streams in parallel
-    results = await fetch_all(credentials, date_range)
-    heart_rate = _unwrap(results[0], "heart_rate")
-    spo2 = _unwrap(results[1], "spo2")
-    steps = _unwrap(results[2], "steps")
-    daily_hrv = _unwrap(results[3], "daily_hrv")
-    daily_spo2 = _unwrap(results[4], "daily_spo2")
-    daily_resting_hr = _unwrap(results[5], "daily_resting_hr")
-    sleep_temp = _unwrap(results[6], "sleep_temp")
-    sleep = _unwrap(results[7], "sleep")
-
-    hrv = daily_hrv
-
-    # ── Run derived metrics ───────────────────────────────────────────────────
-    ans_balance = []
-    if not isinstance(hrv, list):
-        logger.error(f"daily_hrv returned unexpected type: {type(hrv)} — skipping ANS calculation")
-        hrv = []
-    try:
-        ans_balance = calculate_ans_balance(hrv)
-    except Exception as e:
-        logger.error(f"calculate_ans_balance failed: {e}")
-
-    vo2_max = []
-    try:
-        vo2_max = calculate_vo2_max_series(daily_resting_hr, USER_MAX_HR)
-    except Exception as e:
-        logger.error(f"calculate_vo2_max_series failed: {e}")
-
-    acute_stress = []
-    try:
-        acute_stress = identify_acute_stress(heart_rate, steps, USER_RESTING_HR)
-    except Exception as e:
-        logger.error(f"identify_acute_stress failed: {e}")
-
-    sleep_debt = []
-    try:
-        sleep_debt = calculate_sleep_debt_series(sleep, USER_TARGET_SLEEP_HOURS)
-    except Exception as e:
-        logger.error(f"calculate_sleep_debt_series failed: {e}")
-
-    # ── Build and cache compliance payload ────────────────────────────────────
-    payload = {
-        "heart_rate": heart_rate,
-        "hrv": daily_hrv,  # Compliance: HRV maps to daily rollup trend in frontend
-        "spo2": spo2,
-        "daily_spo2": daily_spo2,
-        "daily_resting_hr": daily_resting_hr,
-        "sleep_temp": sleep_temp,
-        "sleep": sleep,
-        "steps": steps,
-        "derived": {
-            "ans_balance": ans_balance,
-            "vo2_max": vo2_max,
-            "acute_stress": acute_stress,
-            "sleep_debt": sleep_debt,
-        },
-    }
-
+    payload = _assemble_and_derive_payload(all_days)
     _cache["payload"] = payload
     _cache["synced_at"] = time.time()
     _cache["user_synced_at"] = time.time()
@@ -534,12 +616,12 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
         logger.warning("Cache payload exceeds 50MB — consider filtering the date range.")
 
     total_records = (
-        len(heart_rate)
-        + len(hrv)
-        + len(spo2)
-        + len(sleep_temp)
-        + len(sleep)
-        + len(steps)
+        len(payload["heart_rate"])
+        + len(payload["hrv"])
+        + len(payload["spo2"])
+        + len(payload["sleep_temp"])
+        + len(payload["sleep"])
+        + len(payload["steps"])
     )
 
     logger.info(
@@ -552,6 +634,144 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
         "records_fetched": total_records,
         "synced_at": _cache["synced_at"],
     })
+
+
+@app.get("/api/sync-stream", summary="Stream physiological sync progress via SSE")
+async def sync_stream(start_date: str, end_date: str) -> StreamingResponse:
+    """
+    Kicks off all fetches in parallel for the date range, emitting progress events.
+    """
+    try:
+        credentials = await get_credentials()
+    except Exception as e:
+        logger.error(f"Sync stream auth failed: {e}")
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+
+    all_days = _date_range(start_date, end_date)
+    days_count = len(all_days)
+
+    async def empty_list():
+        return []
+
+    async def event_generator():
+        async def emit(event: str, data: dict):
+            return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+        client = HealthAPIClient(credentials.token)
+        try:
+            # Handle heart rate date range limit
+            start_date_hr = start_date
+            try:
+                from datetime import datetime, timedelta
+                limit_days = int(os.getenv("HEART_RATE_DAYS_LIMIT", "7"))
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                if (end_dt - start_dt).days > limit_days:
+                    start_date_hr = (end_dt - timedelta(days=limit_days)).strftime("%Y-%m-%d")
+            except Exception as e:
+                logger.warning(f"Failed to apply heart rate date range limit: {e}")
+
+            # Enforce resolution caps based on date range
+            if days_count > 7:
+                logger.info(f"Sync range is {days_count} days (> 7 days). Skipping intraday Heart Rate and SpO2 fetches.")
+                heart_rate_coro = empty_list()
+                spo2_coro = empty_list()
+            else:
+                heart_rate_coro = client.get_heart_rate(start_date_hr, end_date)
+                spo2_coro = client.get_spo2(start_date, end_date)
+
+            tasks_dict = {
+                "heart_rate": heart_rate_coro,
+                "spo2": spo2_coro,
+                "steps": client.get_steps(start_date, end_date),
+                "hrv": client.get_daily_hrv(start_date, end_date),
+                "daily_spo2": client.get_daily_spo2(start_date, end_date),
+                "daily_resting_hr": client.get_daily_resting_hr(start_date, end_date),
+                "sleep_temp": client.get_sleep_temp(start_date, end_date),
+                "sleep": client.get_sleep(start_date, end_date),
+            }
+
+            futures = {name: asyncio.create_task(coro) for name, coro in tasks_dict.items()}
+            total_tasks = len(futures)
+            completed_count = 0
+            results = {}
+
+            pending = set(futures.values())
+            while pending:
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                for task in done:
+                    task_name = next(name for name, fut in futures.items() if fut == task)
+                    try:
+                        res = task.result()
+                    except Exception as e:
+                        logger.error(f"SSE task {task_name} failed: {e}")
+                        res = []
+                        yield await emit("error", {"step": task_name, "message": str(e)})
+                    
+                    results[task_name] = res
+                    completed_count += 1
+                    yield await emit("progress", {
+                        "step": task_name,
+                        "done": completed_count,
+                        "total": total_tasks
+                    })
+
+            # Process / downsample / cache / slice results by day
+            heart_rate_raw = results.get("heart_rate", [])
+            spo2_raw = results.get("spo2", [])
+            if isinstance(heart_rate_raw, list) and heart_rate_raw:
+                heart_rate_raw = downsample_to_minutes(heart_rate_raw, "bpm")
+            if isinstance(spo2_raw, list) and spo2_raw:
+                spo2_raw = downsample_to_minutes(spo2_raw, "value")
+
+            steps_raw = results.get("steps", [])
+            hrv_raw = results.get("hrv", [])
+            daily_spo2_raw = results.get("daily_spo2", [])
+            resting_hr_raw = results.get("daily_resting_hr", [])
+            sleep_temp_raw = results.get("sleep_temp", [])
+            sleep_raw = results.get("sleep", [])
+
+            # Slice by day
+            hr_by_day = slice_by_day(heart_rate_raw)
+            spo2_by_day = slice_by_day(spo2_raw)
+            steps_by_day = slice_by_day(steps_raw)
+            hrv_by_day = slice_by_day(hrv_raw)
+            daily_spo2_by_day = slice_by_day(daily_spo2_raw)
+            resting_hr_by_day = slice_by_day(resting_hr_raw)
+            sleep_temp_by_day = slice_by_day(sleep_temp_raw)
+            sleep_by_day = slice_by_day(sleep_raw)
+
+            # Store in cache
+            for d in all_days:
+                day_data = {
+                    "heart_rate": hr_by_day.get(d, []),
+                    "spo2": spo2_by_day.get(d, []),
+                    "steps": steps_by_day.get(d, []),
+                    "daily_hrv": hrv_by_day.get(d, []),
+                    "daily_spo2": daily_spo2_by_day.get(d, []),
+                    "daily_resting_hr": resting_hr_by_day.get(d, []),
+                    "sleep_temp": sleep_temp_by_day.get(d, []),
+                    "sleep": sleep_by_day.get(d, []),
+                }
+                cache.set_day(d, day_data)
+                _cache["days"][d] = day_data
+
+            _cache["synced_at"] = time.time()
+            _cache["user_synced_at"] = time.time()
+
+            payload = _assemble_and_derive_payload(all_days)
+            payload["stale"] = False
+            _cache["payload"] = payload
+
+            yield await emit("complete", payload)
+
+        except Exception as e:
+            logger.error(f"Error in sync stream: {e}")
+            yield await emit("error", {"step": "general", "message": str(e)})
+        finally:
+            await client.close()
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 # ─── Root health check ────────────────────────────────────────────────────────

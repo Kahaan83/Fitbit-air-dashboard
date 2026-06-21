@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import requests
+import httpx
 from typing import Any
 from datetime import datetime, timedelta
 
@@ -32,8 +33,51 @@ class HealthAPIClient:
     def __init__(self, access_token: str, base_url: str = "https://health.googleapis.com/v4"):
         self.access_token = access_token
         self.base_url = base_url
+        self._http = httpx.AsyncClient(
+            timeout=30.0,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
 
-    def _get(self, endpoint: str, params: dict[str, Any] = None) -> requests.Response | None:
+    async def close(self):
+        await self._http.aclose()
+
+    async def _get(self, endpoint: str, params: dict[str, Any] = None) -> httpx.Response | None:
+        url = f"{self.base_url}/{endpoint}"
+        try:
+            response = await self._http.get(url, params=params)
+            if response.status_code == 401:
+                logger.info("Access token expired or unauthorized (401). Triggering token refresh flow...")
+                from auth import get_credentials_sync
+                creds = get_credentials_sync()
+                self.access_token = creds.token
+                self._http.headers.update({"Authorization": f"Bearer {self.access_token}"})
+                response = await self._http.get(url, params=params)
+            
+            if response.status_code == 400:
+                try:
+                    err_json = response.json()
+                    err_msg = err_json.get("error", {}).get("message", response.text)
+                except Exception:
+                    err_msg = response.text
+                logger.error(f"Bad Request (400) for {endpoint}. Response body: {response.text}")
+                raise ValueError(f"Google Health API Bad Request: {err_msg}")
+
+            if response.status_code != 200:
+                logger.error(f"HTTP error {response.status_code} for {endpoint}: {response.text[:300]}")
+                return None
+                
+            return response
+        except ValueError as ve:
+            raise ve
+        except Exception as e:
+            logger.error(f"Request to {endpoint} failed: {e}")
+            return None
+
+    def _get_sync(self, endpoint: str, params: dict[str, Any] = None) -> requests.Response | None:
         url = f"{self.base_url}/{endpoint}"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -72,20 +116,15 @@ class HealthAPIClient:
 
     async def _post(self, endpoint: str, body: dict) -> dict | None:
         url = f"{self.base_url}/{endpoint}"
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
         try:
-            response = requests.post(url, headers=headers, json=body, timeout=30)
+            response = await self._http.post(url, json=body)
             if response.status_code == 401:
                 logger.info("Access token expired or unauthorized (401). Triggering token refresh flow...")
                 from auth import get_credentials_sync
                 creds = get_credentials_sync()
                 self.access_token = creds.token
-                headers["Authorization"] = f"Bearer {self.access_token}"
-                response = requests.post(url, headers=headers, json=body, timeout=30)
+                self._http.headers.update({"Authorization": f"Bearer {self.access_token}"})
+                response = await self._http.post(url, json=body)
             
             if response.status_code != 200:
                 logger.error(f"HTTP error {response.status_code} for {endpoint}: {response.text[:300]}")
@@ -112,7 +151,7 @@ class HealthAPIClient:
             params = {"filter": filter_expr, "pageSize": 10000}
             if page_token:
                 params["pageToken"] = page_token
-            response = self._get("users/me/dataTypes/heart-rate/dataPoints", params)
+            response = self._get_sync("users/me/dataTypes/heart-rate/dataPoints", params)
             if response is None:
                 break
             data = response.json()
@@ -130,13 +169,14 @@ class HealthAPIClient:
                 normalized.append({
                     "timestamp": ts,
                     "value": float(val),
+                    "bpm": float(val),
                     "data_type": "HEART_RATE"
                 })
         logger.info(f"get_heart_rate: {len(normalized)} points returned.")
         return normalized
 
     async def get_intraday_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        """Not called during sync — intraday HRV reserved for future per-night detail view"""
+        # Reserved for future per-night HRV detail view. Not called during sync.
         return await asyncio.to_thread(self._get_intraday_hrv_sync, start_date, end_date)
 
     def _get_intraday_hrv_sync(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
@@ -152,7 +192,7 @@ class HealthAPIClient:
             params = {"filter": filter_expr, "pageSize": 10000}
             if page_token:
                 params["pageToken"] = page_token
-            response = self._get("users/me/dataTypes/heart-rate-variability/dataPoints", params)
+            response = self._get_sync("users/me/dataTypes/heart-rate-variability/dataPoints", params)
             if response is None:
                 break
             data = response.json()
@@ -194,7 +234,7 @@ class HealthAPIClient:
             params = {"filter": filter_expr, "pageSize": 10000}
             if page_token:
                 params["pageToken"] = page_token
-            response = self._get("users/me/dataTypes/oxygen-saturation/dataPoints", params)
+            response = self._get_sync("users/me/dataTypes/oxygen-saturation/dataPoints", params)
             if response is None:
                 break
             data = response.json()
@@ -239,7 +279,7 @@ class HealthAPIClient:
             params = {"filter": filter_expr, "pageSize": 10000}
             if page_token:
                 params["pageToken"] = page_token
-            response = self._get("users/me/dataTypes/steps/dataPoints", params)
+            response = self._get_sync("users/me/dataTypes/steps/dataPoints", params)
             if response is None:
                 break
             data = response.json()
@@ -302,7 +342,7 @@ class HealthAPIClient:
         filter_expr = f"daily_heart_rate_variability.date >= \"{start_date}\" AND daily_heart_rate_variability.date < \"{next_day_str}\""
         params = {"filter": filter_expr}
         
-        res = self._get("users/me/dataTypes/daily-heart-rate-variability/dataPoints", params)
+        res = await self._get("users/me/dataTypes/daily-heart-rate-variability/dataPoints", params)
         if not res:
             return []
             
@@ -336,7 +376,7 @@ class HealthAPIClient:
         filter_expr = f"daily_oxygen_saturation.date >= \"{start_date}\" AND daily_oxygen_saturation.date < \"{next_day_str}\""
         params = {"filter": filter_expr}
         
-        res = self._get("users/me/dataTypes/daily-oxygen-saturation/dataPoints", params)
+        res = await self._get("users/me/dataTypes/daily-oxygen-saturation/dataPoints", params)
         if not res:
             return []
             
@@ -370,7 +410,7 @@ class HealthAPIClient:
         filter_expr = f"daily_resting_heart_rate.date >= \"{start_date}\" AND daily_resting_heart_rate.date < \"{next_day_str}\""
         params = {"filter": filter_expr}
         
-        res = self._get("users/me/dataTypes/daily-resting-heart-rate/dataPoints", params)
+        res = await self._get("users/me/dataTypes/daily-resting-heart-rate/dataPoints", params)
         if not res:
             return []
             
@@ -404,7 +444,7 @@ class HealthAPIClient:
         filter_expr = f"daily_sleep_temperature_derivations.date >= \"{start_date}\" AND daily_sleep_temperature_derivations.date < \"{next_day_str}\""
         params = {"filter": filter_expr}
         
-        res = self._get("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints", params)
+        res = await self._get("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints", params)
         if not res:
             return []
             
@@ -437,7 +477,7 @@ class HealthAPIClient:
         return await asyncio.to_thread(self._get_sleep_sync, start_date, end_date)
 
     def _get_sleep_sync(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/sleep/dataPoints", {"pageSize": 1000})
+        response = self._get_sync("users/me/dataTypes/sleep/dataPoints", {"pageSize": 1000})
         if not response:
             return []
             

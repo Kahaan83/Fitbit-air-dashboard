@@ -19,13 +19,11 @@ export function DateRangePicker() {
     setSyncEndDate,
     dataMode,
     addToast,
-    setLiveData,
-    setLastSync,
-    setIsLoadingLiveData,
+    fetchLiveData,
+    syncInFlight,
   } = useDashboardStore();
 
   const [activePreset, setActivePreset] = useState<"7d" | "30d" | "90d" | "custom">("30d");
-  const [isSyncing, setIsSyncing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -111,53 +109,7 @@ export function DateRangePicker() {
       return;
     }
 
-    setIsSyncing(true);
-    setIsLoadingLiveData(true);
-    try {
-      const res = await fetch("/api/trigger-sync", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          start_date: syncStartDate,
-          end_date: syncEndDate,
-        }),
-      });
-
-      if (res.status === 429) {
-        const data = await res.json();
-        addToast(`Sync cooldown active. Please wait ${data.retry_after}s before syncing again.`, "error");
-        return;
-      }
-
-      if (!res.ok) {
-        let errorMsg = "Synchronization request failed.";
-        try {
-          const errData = await res.json();
-          if (errData?.message) errorMsg = errData.message;
-        } catch (_) {}
-        throw new Error(errorMsg);
-      }
-
-      addToast("Synchronized physiological data successfully!", "success");
-
-      // Reload cached payload from backend
-      const liveRes = await fetch("/api/live-data");
-      if (liveRes.ok) {
-        const payload = await liveRes.json();
-        setLiveData(payload);
-        setLastSync(new Date().toISOString());
-      } else {
-        addToast("Data synced, but failed to fetch fresh cache from backend.", "error");
-      }
-    } catch (err: any) {
-      console.error(err);
-      addToast(`Sync failed: ${err.message || "Unknown error"}`, "error");
-    } finally {
-      setIsSyncing(false);
-      setIsLoadingLiveData(false);
-    }
+    await fetchLiveData({ start_date: syncStartDate, end_date: syncEndDate });
   };
 
   if (!mounted) {
@@ -194,7 +146,7 @@ export function DateRangePicker() {
               type="date"
               value={syncStartDate}
               onChange={(e) => setSyncStartDate(e.target.value)}
-              disabled={isSyncing}
+              disabled={syncInFlight}
               className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-1 text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors disabled:opacity-50 cursor-pointer"
             />
             <span className="text-[var(--text-secondary)] font-medium">to</span>
@@ -202,7 +154,7 @@ export function DateRangePicker() {
               type="date"
               value={syncEndDate}
               onChange={(e) => setSyncEndDate(e.target.value)}
-              disabled={isSyncing}
+              disabled={syncInFlight}
               className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-2.5 py-1 text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors disabled:opacity-50 cursor-pointer"
             />
           </div>
@@ -212,7 +164,7 @@ export function DateRangePicker() {
         <button
           type="button"
           onClick={handleSync}
-          disabled={isSyncing || !!validationError}
+          disabled={syncInFlight || !!validationError}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-semibold tracking-wide transition-all uppercase shadow-md cursor-pointer select-none focus:outline-none ${
             dataMode === "live"
               ? "border-[var(--accent-primary)]/45 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/20 shadow-[0_0_8px_-2px_rgba(124,109,250,0.2)]"
@@ -220,8 +172,8 @@ export function DateRangePicker() {
           } disabled:opacity-50`}
           title={dataMode === "live" ? "Sync data for range" : "Live data mode required"}
         >
-          <RefreshCw className={`h-3 w-3 ${isSyncing ? "animate-spin" : ""}`} />
-          <span>{isSyncing ? "Syncing..." : "Sync"}</span>
+          <RefreshCw className={`h-3 w-3 ${syncInFlight ? "animate-spin" : ""}`} />
+          <span>{syncInFlight ? "Syncing..." : "Sync"}</span>
         </button>
       </div>
       {activePreset === "custom" && validationError && (
