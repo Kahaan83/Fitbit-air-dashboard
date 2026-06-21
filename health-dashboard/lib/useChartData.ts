@@ -9,9 +9,13 @@ import {
 } from "./transforms";
 
 export function useChartData() {
-  const { dataMode, liveData, settings } = useDashboardStore();
+  const { dataMode, liveData, previousLiveData, isLoadingLiveData, settings } = useDashboardStore();
 
-  if (dataMode === "sample" || !liveData) {
+  const displayLiveData = (dataMode === "live" && isLoadingLiveData)
+    ? (previousLiveData ?? liveData)
+    : liveData;
+
+  if (dataMode === "sample" || !displayLiveData) {
     return {
       hrv: mock.mockHRV,
       ansBalance: mock.mockANSBalance,
@@ -36,14 +40,14 @@ export function useChartData() {
   // --- Map Live Data from FastAPI Gateway ---
   // 1. HRV: Live data uses DAILY_HEART_RATE_VARIABILITY rollups or raw hrv
   // Fallback to daily_hrv or calculate from hrv series if present.
-  const rawHrv = liveData.hrv || [];
+  const rawHrv = displayLiveData.hrv || [];
   const hrvMapped = rawHrv.map((d: any) => ({
     date: d.timestamp.split("T")[0],
     value: typeof d.value === "number" ? d.value : parseFloat(d.value),
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
   // 2. ANS Balance: Already computed on backend (safely handling list or dict format)
-  const ansRaw = liveData.derived?.ans_balance;
+  const ansRaw = displayLiveData.derived?.ans_balance;
   const ansList = Array.isArray(ansRaw) ? ansRaw : (ansRaw?.data || []);
   const ansMapped = ansList.map((d: any) => ({
     date: d.date,
@@ -53,16 +57,16 @@ export function useChartData() {
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
   // 3. Skin Temp (DAILY_SLEEP_TEMPERATURE_DERIVATIONS)
-  const tempMapped = (liveData.sleep_temp || []).map((d: any) => ({
+  const tempMapped = (displayLiveData.sleep_temp || []).map((d: any) => ({
     date: d.timestamp.split("T")[0],
     value: typeof d.value === "number" ? d.value : parseFloat(d.value),
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
   // 4. Sleep Debt: dynamically build sleep debt series client-side using transforms
-  const sleepDebtMapped = buildSleepDebtSeries(liveData.sleep || [], settings.targetSleepHours);
+  const sleepDebtMapped = buildSleepDebtSeries(displayLiveData.sleep || [], settings.targetSleepHours);
 
   // 5. VO2 Max: Already computed on backend (safely handling list or single value)
-  const vo2MaxRaw = liveData.derived?.vo2_max;
+  const vo2MaxRaw = displayLiveData.derived?.vo2_max;
   const vo2MaxList = Array.isArray(vo2MaxRaw) ? vo2MaxRaw : [];
   const vo2MaxMapped = vo2MaxList.map((d: any) => ({
     date: d.date,
@@ -70,12 +74,12 @@ export function useChartData() {
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
   // 6. Acute Stress Events: map using mapAcuteStress and flatten
-  const stressRaw = liveData.derived?.acute_stress;
+  const stressRaw = displayLiveData.derived?.acute_stress;
   const stressList = Array.isArray(stressRaw) ? stressRaw : [];
   const stressMapped = Object.values(mapAcuteStress(stressList)).flat();
 
   // 7. Nocturnal SpO2
-  const { spo2Grouped, isSpO2Fallback } = buildSpo2Nocturnal(liveData.spo2 || [], liveData.daily_spo2 || []);
+  const { spo2Grouped, isSpO2Fallback } = buildSpo2Nocturnal(displayLiveData.spo2 || [], displayLiveData.daily_spo2 || []);
 
   // ── Derived analytics for live mode ─────────────────────────────────────────
 
@@ -90,7 +94,7 @@ export function useChartData() {
 
   // 3. peakHRToday: max heart rate from today's live readings
   const todayStr = new Date().toISOString().slice(0, 10);
-  const rawHR = liveData.heart_rate || [];
+  const rawHR = displayLiveData.heart_rate || [];
   const todayHR = rawHR
     .filter((d: any) => (d.timestamp || "").startsWith(todayStr))
     .map((d: any) => typeof d.value === "number" ? d.value : parseFloat(d.value));
@@ -107,7 +111,7 @@ export function useChartData() {
   const recoveryScore = calculateRecoveryScore(hrvMapped, settings.restingHR, sleepEfficiency);
 
   // 5. remPct: REM % from most recent live sleep session
-  const liveSleep = liveData.sleep || [];
+  const liveSleep = displayLiveData.sleep || [];
   let remPct = 0;
   if (liveSleep.length > 0) {
     const lastSession = liveSleep[liveSleep.length - 1];
@@ -119,7 +123,7 @@ export function useChartData() {
   }
 
   // 6. stepGoalHitRate: % of days with >= 10000 steps
-  const rawSteps = liveData.steps || [];
+  const rawSteps = displayLiveData.steps || [];
   let stepGoalHitRate = 0;
   if (rawSteps.length > 0) {
     const dailyStepMap: Record<string, number> = {};
@@ -175,4 +179,3 @@ export function useChartData() {
   };
 }
 export type ChartData = ReturnType<typeof useChartData>;
-

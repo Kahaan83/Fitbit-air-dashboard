@@ -228,3 +228,43 @@ export function buildSpo2Nocturnal(
 
   return { spo2Grouped, isSpO2Fallback };
 }
+
+export function computeStrainFromZones(
+  heartRateData: { timestamp: string; value: number | string }[],
+  maxHR: number = 185
+): number {
+  if (!heartRateData || heartRateData.length === 0) return 0;
+  
+  const sorted = [...heartRateData].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  
+  let zone4Minutes = 0;
+  let zone5Minutes = 0;
+  
+  for (let i = 0; i < sorted.length; i++) {
+    const d = sorted[i];
+    const val = typeof d.value === "number" ? d.value : parseFloat(d.value as string);
+    if (isNaN(val)) continue;
+    
+    const pct = (val / maxHR) * 100;
+    
+    let durationMins = 0.25;
+    if (i < sorted.length - 1) {
+      const currentMs = new Date(d.timestamp).getTime();
+      const nextMs = new Date(sorted[i + 1].timestamp).getTime();
+      const diffMs = nextMs - currentMs;
+      if (diffMs > 0 && diffMs < 5 * 60 * 1000) {
+        durationMins = diffMs / (1000 * 60);
+      }
+    }
+    
+    if (pct > 80 && pct <= 90) {
+      zone4Minutes += durationMins;
+    } else if (pct > 90) {
+      zone5Minutes += durationMins;
+    }
+  }
+  
+  const score = zone4Minutes * 0.15 + zone5Minutes * 0.4;
+  return Math.round(Math.min(21, score) * 10) / 10;
+}
+

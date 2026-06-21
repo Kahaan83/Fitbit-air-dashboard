@@ -1,5 +1,7 @@
 import logging
+import asyncio
 import requests
+import httpx
 from typing import Any
 from datetime import datetime, timedelta
 
@@ -31,8 +33,51 @@ class HealthAPIClient:
     def __init__(self, access_token: str, base_url: str = "https://health.googleapis.com/v4"):
         self.access_token = access_token
         self.base_url = base_url
+        self._http = httpx.AsyncClient(
+            timeout=30.0,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
 
-    def _get(self, endpoint: str, params: dict[str, Any] = None) -> requests.Response | None:
+    async def close(self):
+        await self._http.aclose()
+
+    async def _get(self, endpoint: str, params: dict[str, Any] = None) -> httpx.Response | None:
+        url = f"{self.base_url}/{endpoint}"
+        try:
+            response = await self._http.get(url, params=params)
+            if response.status_code == 401:
+                logger.info("Access token expired or unauthorized (401). Triggering token refresh flow...")
+                from auth import get_credentials_sync
+                creds = get_credentials_sync()
+                self.access_token = creds.token
+                self._http.headers.update({"Authorization": f"Bearer {self.access_token}"})
+                response = await self._http.get(url, params=params)
+            
+            if response.status_code == 400:
+                try:
+                    err_json = response.json()
+                    err_msg = err_json.get("error", {}).get("message", response.text)
+                except Exception:
+                    err_msg = response.text
+                logger.error(f"Bad Request (400) for {endpoint}. Response body: {response.text}")
+                raise ValueError(f"Google Health API Bad Request: {err_msg}")
+
+            if response.status_code != 200:
+                logger.error(f"HTTP error {response.status_code} for {endpoint}: {response.text[:300]}")
+                return None
+                
+            return response
+        except ValueError as ve:
+            raise ve
+        except Exception as e:
+            logger.error(f"Request to {endpoint} failed: {e}")
+            return None
+
+    def _get_sync(self, endpoint: str, params: dict[str, Any] = None) -> requests.Response | None:
         url = f"{self.base_url}/{endpoint}"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -70,29 +115,16 @@ class HealthAPIClient:
             return None
 
     async def _post(self, endpoint: str, body: dict) -> dict | None:
-        if endpoint == "dailyRollUp":
-            if "/v4" in self.base_url:
-                base = self.base_url.replace("/v4", "/v1")
-            else:
-                base = self.base_url
-            url = f"{base}/users/me/dailyRollUp"
-        else:
-            url = f"{self.base_url}/{endpoint}"
-
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
+        url = f"{self.base_url}/{endpoint}"
         try:
-            response = requests.post(url, headers=headers, json=body, timeout=30)
+            response = await self._http.post(url, json=body)
             if response.status_code == 401:
                 logger.info("Access token expired or unauthorized (401). Triggering token refresh flow...")
                 from auth import get_credentials_sync
                 creds = get_credentials_sync()
                 self.access_token = creds.token
-                headers["Authorization"] = f"Bearer {self.access_token}"
-                response = requests.post(url, headers=headers, json=body, timeout=30)
+                self._http.headers.update({"Authorization": f"Bearer {self.access_token}"})
+                response = await self._http.post(url, json=body)
             
             if response.status_code != 200:
                 logger.error(f"HTTP error {response.status_code} for {endpoint}: {response.text[:300]}")
@@ -103,7 +135,10 @@ class HealthAPIClient:
             logger.error(f"Request to {endpoint} failed: {e}")
             return None
 
-    def get_heart_rate(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+    async def get_heart_rate(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self._get_heart_rate_sync, start_date, end_date)
+
+    def _get_heart_rate_sync(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
         start_time = f"{start_date}T00:00:00Z"
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
         next_day_dt = end_date_dt + timedelta(days=1)
@@ -116,7 +151,7 @@ class HealthAPIClient:
             params = {"filter": filter_expr, "pageSize": 10000}
             if page_token:
                 params["pageToken"] = page_token
-            response = self._get("users/me/dataTypes/heart-rate/dataPoints", params)
+            response = self._get_sync("users/me/dataTypes/heart-rate/dataPoints", params)
             if response is None:
                 break
             data = response.json()
@@ -134,12 +169,17 @@ class HealthAPIClient:
                 normalized.append({
                     "timestamp": ts,
                     "value": float(val),
+                    "bpm": float(val),
                     "data_type": "HEART_RATE"
                 })
         logger.info(f"get_heart_rate: {len(normalized)} points returned.")
         return normalized
 
-    def get_intraday_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+    async def get_intraday_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        # Reserved for future per-night HRV detail view. Not called during sync.
+        return await asyncio.to_thread(self._get_intraday_hrv_sync, start_date, end_date)
+
+    def _get_intraday_hrv_sync(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
         start_time = f"{start_date}T00:00:00Z"
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
         next_day_dt = end_date_dt + timedelta(days=1)
@@ -152,7 +192,7 @@ class HealthAPIClient:
             params = {"filter": filter_expr, "pageSize": 10000}
             if page_token:
                 params["pageToken"] = page_token
-            response = self._get("users/me/dataTypes/heart-rate-variability/dataPoints", params)
+            response = self._get_sync("users/me/dataTypes/heart-rate-variability/dataPoints", params)
             if response is None:
                 break
             data = response.json()
@@ -160,7 +200,7 @@ class HealthAPIClient:
             page_token = data.get("nextPageToken")
             if not page_token:
                 break
-
+ 
         normalized = []
         for pt in all_points:
             hrv_data = pt.get("heartRateVariability", {})
@@ -174,16 +214,14 @@ class HealthAPIClient:
                 })
         logger.info(f"get_intraday_hrv: {len(normalized)} points returned.")
         return normalized
+ 
+    async def get_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        return await self.get_daily_hrv(start_date, end_date)
 
-    def get_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        intraday = self.get_intraday_hrv(start_date, end_date)
-        if intraday:
-            return intraday
-            
-        logger.warning("Intraday HRV is unavailable. Falling back to daily aggregates.")
-        return self.get_daily_hrv(start_date, end_date)
+    async def get_spo2(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self._get_spo2_sync, start_date, end_date)
 
-    def get_spo2(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+    def _get_spo2_sync(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
         start_time = f"{start_date}T00:00:00Z"
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
         next_day_dt = end_date_dt + timedelta(days=1)
@@ -196,7 +234,7 @@ class HealthAPIClient:
             params = {"filter": filter_expr, "pageSize": 10000}
             if page_token:
                 params["pageToken"] = page_token
-            response = self._get("users/me/dataTypes/oxygen-saturation/dataPoints", params)
+            response = self._get_sync("users/me/dataTypes/oxygen-saturation/dataPoints", params)
             if response is None:
                 break
             data = response.json()
@@ -225,12 +263,15 @@ class HealthAPIClient:
         logger.info(f"get_spo2: {len(normalized)} points returned.")
         return normalized
 
-    def get_steps(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        start_time = f"{start_date}T00:00:00"
+    async def get_steps(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self._get_steps_sync, start_date, end_date)
+
+    def _get_steps_sync(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        start_time = f"{start_date}T00:00:00Z"
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
         next_day_dt = end_date_dt + timedelta(days=1)
-        end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00"
-        filter_expr = f"steps.interval.civil_start_time >= \"{start_time}\" AND steps.interval.civil_start_time < \"{end_time}\""
+        end_time = f"{next_day_dt.strftime('%Y-%m-%d')}T00:00:00Z"
+        filter_expr = f"steps.interval.start_time >= \"{start_time}\" AND steps.interval.start_time < \"{end_time}\""
         
         all_points = []
         page_token = None
@@ -238,7 +279,7 @@ class HealthAPIClient:
             params = {"filter": filter_expr, "pageSize": 10000}
             if page_token:
                 params["pageToken"] = page_token
-            response = self._get("users/me/dataTypes/steps/dataPoints", params)
+            response = self._get_sync("users/me/dataTypes/steps/dataPoints", params)
             if response is None:
                 break
             data = response.json()
@@ -261,113 +302,182 @@ class HealthAPIClient:
         logger.info(f"get_steps: {len(normalized)} points returned.")
         return normalized
 
-    async def get_daily_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        body = {
-            "dataTypeName": ["daily-heart-rate-variability"],
-            "startTime": f"{start_date}T00:00:00+00:00",
-            "endTime": f"{end_date}T23:59:59+00:00"
+    def _build_daily_rollup_body(self, start_date: str, end_date: str) -> dict:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+        return {
+            "range": {
+                "start": {
+                    "date": {
+                        "year": start_dt.year,
+                        "month": start_dt.month,
+                        "day": start_dt.day
+                    },
+                    "time": {
+                        "hours": 0,
+                        "minutes": 0,
+                        "seconds": 0,
+                        "nanos": 0
+                    }
+                },
+                "end": {
+                    "date": {
+                        "year": end_dt.year,
+                        "month": end_dt.month,
+                        "day": end_dt.day
+                    },
+                    "time": {
+                        "hours": 0,
+                        "minutes": 0,
+                        "seconds": 0,
+                        "nanos": 0
+                    }
+                }
+            }
         }
-        res = await self._post("dailyRollUp", body)
+
+    async def get_daily_hrv(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        next_day_str = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        filter_expr = f"daily_heart_rate_variability.date >= \"{start_date}\" AND daily_heart_rate_variability.date < \"{next_day_str}\""
+        params = {"filter": filter_expr}
+        
+        res = await self._get("users/me/dataTypes/daily-heart-rate-variability/dataPoints", params)
         if not res:
             return []
             
-        points = res.get("rollupDataPoints", [])
-        normalized = []
-        for pt in points:
-            date_str = _parse_rollup_date(pt, "dailyHeartRateVariability")
-            hrv_data = pt.get("dailyHeartRateVariability", {})
-            val = hrv_data.get("averageHeartRateVariabilityMilliseconds")
-            if val is not None:
-                normalized.append({
-                    "timestamp": date_str,
-                    "value": float(val),
-                    "data_type": "DAILY_HEART_RATE_VARIABILITY"
-                })
-        normalized.sort(key=lambda x: x["timestamp"])
-        logger.info(f"get_daily_hrv: {len(normalized)} records returned.")
-        return normalized
+        try:
+            res_json = res.json()
+            points = res_json.get("dataPoints", [])
+            normalized = []
+            for pt in points:
+                date_str = _parse_rollup_date(pt, "dailyHeartRateVariability")
+                hrv_data = pt.get("dailyHeartRateVariability", {})
+                val = hrv_data.get("averageHeartRateVariabilityMilliseconds")
+                if val is not None:
+                    normalized.append({
+                        "timestamp": date_str,
+                        "value": float(val),
+                        "data_type": "DAILY_HEART_RATE_VARIABILITY"
+                    })
+            normalized.sort(key=lambda x: x["timestamp"])
+            logger.info(f"get_daily_hrv: {len(normalized)} records returned.")
+            return normalized
+        except (KeyError, ValueError, TypeError) as e:
+            logger.error(
+                f"dailyRollUp parse error for DAILY_HEART_RATE_VARIABILITY: {e}. "
+                f"Response keys: {list(res_json.keys()) if isinstance(res_json, dict) else type(res_json)}"
+            )
+            return []
 
     async def get_daily_spo2(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        body = {
-            "dataTypeName": ["daily-oxygen-saturation"],
-            "startTime": f"{start_date}T00:00:00+00:00",
-            "endTime": f"{end_date}T23:59:59+00:00"
-        }
-        res = await self._post("dailyRollUp", body)
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        next_day_str = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        filter_expr = f"daily_oxygen_saturation.date >= \"{start_date}\" AND daily_oxygen_saturation.date < \"{next_day_str}\""
+        params = {"filter": filter_expr}
+        
+        res = await self._get("users/me/dataTypes/daily-oxygen-saturation/dataPoints", params)
         if not res:
             return []
             
-        points = res.get("rollupDataPoints", [])
-        normalized = []
-        for pt in points:
-            date_str = _parse_rollup_date(pt, "dailyOxygenSaturation")
-            spo2_data = pt.get("dailyOxygenSaturation", {})
-            val = spo2_data.get("averagePercentage")
-            if val is not None:
-                normalized.append({
-                    "timestamp": date_str,
-                    "value": float(val),
-                    "data_type": "DAILY_OXYGEN_SATURATION"
-                })
-        normalized.sort(key=lambda x: x["timestamp"])
-        logger.info(f"get_daily_spo2: {len(normalized)} records returned.")
-        return normalized
+        try:
+            res_json = res.json()
+            points = res_json.get("dataPoints", [])
+            normalized = []
+            for pt in points:
+                date_str = _parse_rollup_date(pt, "dailyOxygenSaturation")
+                spo2_data = pt.get("dailyOxygenSaturation", {})
+                val = spo2_data.get("averagePercentage")
+                if val is not None:
+                    normalized.append({
+                        "timestamp": date_str,
+                        "value": float(val),
+                        "data_type": "DAILY_OXYGEN_SATURATION"
+                    })
+            normalized.sort(key=lambda x: x["timestamp"])
+            logger.info(f"get_daily_spo2: {len(normalized)} records returned.")
+            return normalized
+        except (KeyError, ValueError, TypeError) as e:
+            logger.error(
+                f"dailyRollUp parse error for DAILY_OXYGEN_SATURATION: {e}. "
+                f"Response keys: {list(res_json.keys()) if isinstance(res_json, dict) else type(res_json)}"
+            )
+            return []
 
     async def get_daily_resting_hr(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        body = {
-            "dataTypeName": ["daily-resting-heart-rate"],
-            "startTime": f"{start_date}T00:00:00+00:00",
-            "endTime": f"{end_date}T23:59:59+00:00"
-        }
-        res = await self._post("dailyRollUp", body)
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        next_day_str = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        filter_expr = f"daily_resting_heart_rate.date >= \"{start_date}\" AND daily_resting_heart_rate.date < \"{next_day_str}\""
+        params = {"filter": filter_expr}
+        
+        res = await self._get("users/me/dataTypes/daily-resting-heart-rate/dataPoints", params)
         if not res:
             return []
             
-        points = res.get("rollupDataPoints", [])
-        normalized = []
-        for pt in points:
-            date_str = _parse_rollup_date(pt, "dailyRestingHeartRate")
-            rhr_data = pt.get("dailyRestingHeartRate", {})
-            val = rhr_data.get("beatsPerMinute")
-            if val is not None:
-                normalized.append({
-                    "timestamp": date_str,
-                    "value": float(val),
-                    "data_type": "DAILY_RESTING_HEART_RATE"
-                })
-        normalized.sort(key=lambda x: x["timestamp"])
-        logger.info(f"get_daily_resting_hr: {len(normalized)} records returned.")
-        return normalized
+        try:
+            res_json = res.json()
+            points = res_json.get("dataPoints", [])
+            normalized = []
+            for pt in points:
+                date_str = _parse_rollup_date(pt, "dailyRestingHeartRate")
+                rhr_data = pt.get("dailyRestingHeartRate", {})
+                val = rhr_data.get("beatsPerMinute")
+                if val is not None:
+                    normalized.append({
+                        "timestamp": date_str,
+                        "value": float(val),
+                        "data_type": "DAILY_RESTING_HEART_RATE"
+                    })
+            normalized.sort(key=lambda x: x["timestamp"])
+            logger.info(f"get_daily_resting_hr: {len(normalized)} records returned.")
+            return normalized
+        except (KeyError, ValueError, TypeError) as e:
+            logger.error(
+                f"dailyRollUp parse error for DAILY_RESTING_HEART_RATE: {e}. "
+                f"Response keys: {list(res_json.keys()) if isinstance(res_json, dict) else type(res_json)}"
+            )
+            return []
 
     async def get_sleep_temp(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        body = {
-            "dataTypeName": ["daily-sleep-temperature-derivations"],
-            "startTime": f"{start_date}T00:00:00+00:00",
-            "endTime": f"{end_date}T23:59:59+00:00"
-        }
-        res = await self._post("dailyRollUp", body)
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        next_day_str = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        filter_expr = f"daily_sleep_temperature_derivations.date >= \"{start_date}\" AND daily_sleep_temperature_derivations.date < \"{next_day_str}\""
+        params = {"filter": filter_expr}
+        
+        res = await self._get("users/me/dataTypes/daily-sleep-temperature-derivations/dataPoints", params)
         if not res:
             return []
             
-        points = res.get("rollupDataPoints", [])
-        normalized = []
-        for pt in points:
-            date_str = _parse_rollup_date(pt, "dailySleepTemperatureDerivations")
-            temp_data = pt.get("dailySleepTemperatureDerivations", {})
-            val = temp_data.get("nightlyTemperatureCelsius")
-            if val is not None:
-                normalized.append({
-                    "timestamp": date_str,
-                    "value": float(val),
-                    "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"
-                })
-        normalized.sort(key=lambda x: x["timestamp"])
-        logger.info(f"get_sleep_temp: {len(normalized)} records returned.")
-        return normalized
+        try:
+            res_json = res.json()
+            points = res_json.get("dataPoints", [])
+            normalized = []
+            for pt in points:
+                date_str = _parse_rollup_date(pt, "dailySleepTemperatureDerivations")
+                temp_data = pt.get("dailySleepTemperatureDerivations", {})
+                val = temp_data.get("nightlyTemperatureCelsius")
+                if val is not None:
+                    normalized.append({
+                        "timestamp": date_str,
+                        "value": float(val),
+                        "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"
+                    })
+            normalized.sort(key=lambda x: x["timestamp"])
+            logger.info(f"get_sleep_temp: {len(normalized)} records returned.")
+            return normalized
+        except (KeyError, ValueError, TypeError) as e:
+            logger.error(
+                f"dailyRollUp parse error for DAILY_SLEEP_TEMPERATURE_DERIVATIONS: {e}. "
+                f"Response keys: {list(res_json.keys()) if isinstance(res_json, dict) else type(res_json)}"
+            )
+            return []
 
 
-    def get_sleep(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
-        response = self._get("users/me/dataTypes/sleep/dataPoints", {"pageSize": 1000})
+    async def get_sleep(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self._get_sleep_sync, start_date, end_date)
+
+    def _get_sleep_sync(self, start_date: str, end_date: str) -> list[dict[str, Any]]:
+        response = self._get_sync("users/me/dataTypes/sleep/dataPoints", {"pageSize": 1000})
         if not response:
             return []
             

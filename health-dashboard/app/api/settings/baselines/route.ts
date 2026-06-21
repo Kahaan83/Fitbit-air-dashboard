@@ -1,21 +1,19 @@
 import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
+export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    
-    const res = await fetch("http://127.0.0.1:8000/api/settings", {
-      method: "POST",
+
+    const res = await fetch("http://127.0.0.1:8000/api/settings/baselines", {
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        client_id: body.clientId,
-        client_secret: body.clientSecret || process.env.GCP_CLIENT_SECRET || "",
         age: body.age,
-        max_hr: body.maxHR,
-        resting_hr: body.restingHR,
-        target_sleep_hours: body.targetSleepHours,
+        max_hr: body.max_hr,
+        resting_hr: body.resting_hr,
+        target_sleep_hours: body.target_sleep_hours,
       }),
     });
 

@@ -441,9 +441,9 @@ export default function RawMetricsPage() {
 
   const todaySteps = useMemo(() => {
     if (!stepsArr.length) return 6820;
-    const targetDate = isLive ? new Date().toISOString().slice(0, 10) : "2025-06-15";
+    const todayStr = isLive ? new Date().toLocaleDateString("en-CA") : "2025-06-15";
     return stepsArr
-      .filter((s) => (s.timestamp || "").startsWith(targetDate))
+      .filter((s) => s.date === todayStr || (s.timestamp || "").startsWith(todayStr))
       .reduce((acc, s) => acc + (s.value || 0), 0);
   }, [stepsArr, isLive]);
 

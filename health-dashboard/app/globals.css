@@ -113,7 +113,7 @@ input::placeholder {
   color: #334155;
 }
 
-@keyframes shimmer {
+@keyframes shimmer-opacity {
 
   0%,
   100% {
@@ -126,5 +126,10 @@ input::placeholder {
 }
 
 .shimmer {
-  animation: shimmer 1.5s ease-in-out infinite;
+  animation: shimmer-opacity 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0 }
+  100% { background-position: -200% 0 }
 }

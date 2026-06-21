@@ -5,22 +5,22 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
-import { cssVar } from "@/lib/cssVar";
 
 export function HRZoneChart() {
   const dataMode = useDashboardStore((state) => state.dataMode);
   const settings = useDashboardStore((state) => state.settings);
   const liveData = useDashboardStore((state) => state.liveData);
+  const theme = useDashboardStore((state) => state.theme);
 
-  const colorBgSurface = "#1C1C1C";
-  const colorBorderMedium = "rgba(255,255,255,0.08)";
-  const colorTextPrimary = "#FFFFFF";
+  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
+  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
+  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
 
-  const colorZone1 = "#2A2A2A";
-  const colorZone2 = "#3B7FD4";
-  const colorZone3 = "#00FF87";
-  const colorZone4 = "#FFB800";
-  const colorZone5 = "#FF3B5C";
+  const colorZone1 = theme === "whoop" ? "#333333" : "#44445A";
+  const colorZone2 = theme === "whoop" ? "#00D4FF" : "#2563EB";
+  const colorZone3 = theme === "whoop" ? "#00FF9C" : "#22D3A5";
+  const colorZone4 = theme === "whoop" ? "#FFB800" : "#F59E0B";
+  const colorZone5 = theme === "whoop" ? "#FF3B5C" : "#F4546A";
 
   const heartRateData = liveData?.heart_rate || [];
   const maxHR = settings.maxHR || 185;
@@ -31,13 +31,16 @@ export function HRZoneChart() {
   let z4 = 0; // Threshold
   let z5 = 0; // Max
 
-  if (dataMode === "sample" || heartRateData.length === 0) {
+  let hasData = false;
+
+  if (dataMode === "sample") {
+    hasData = true;
     z1 = 45;
     z2 = 25;
     z3 = 18;
     z4 = 9;
     z5 = 3;
-  } else {
+  } else if (heartRateData.length > 0) {
     heartRateData.forEach((d: any) => {
       const val = typeof d.value === "number" ? d.value : parseFloat(d.value);
       if (!isNaN(val)) {
@@ -52,18 +55,32 @@ export function HRZoneChart() {
 
     const total = z1 + z2 + z3 + z4 + z5;
     if (total > 0) {
+      hasData = true;
       z1 = Math.round((z1 / total) * 100 * 10) / 10;
       z2 = Math.round((z2 / total) * 100 * 10) / 10;
       z3 = Math.round((z3 / total) * 100 * 10) / 10;
       z4 = Math.round((z4 / total) * 100 * 10) / 10;
       z5 = Math.round((z5 / total) * 100 * 10) / 10;
-    } else {
-      z1 = 45;
-      z2 = 25;
-      z3 = 18;
-      z4 = 9;
-      z5 = 3;
     }
+  }
+
+  if (!hasData && dataMode === "live") {
+    return (
+      <div
+        data-testid="hr-zone-chart"
+        className="rounded-2xl border-[0.5px] border-[var(--border-soft)] bg-[var(--bg-card)] p-[20px_24px] min-w-0 flex flex-col justify-between h-[260px]"
+      >
+        <div className="flex items-center justify-between mb-5">
+          <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
+            HEART RATE ZONES
+          </span>
+          <MetricInfo metricKey="heart_rate" />
+        </div>
+        <div className="h-40 w-full mt-2 flex items-center justify-center">
+          <EmptyChartState title="No heart rate data" subtitle="Sync a date range with recorded activity" />
+        </div>
+      </div>
+    );
   }
 
   const chartData = [
@@ -77,16 +94,14 @@ export function HRZoneChart() {
     },
   ];
 
-  const hasData = dataMode === "sample" || (heartRateData && heartRateData.length > 0);
-
   return (
     <div
       data-testid="hr-zone-chart"
-      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] min-w-0 flex flex-col justify-between h-[260px]"
+      className="rounded-2xl border-[0.5px] border-[var(--border-soft)] bg-[var(--bg-card)] p-[20px_24px] min-w-0 flex flex-col justify-between h-[260px]"
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+        <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
           HEART RATE ZONES
         </span>
         <MetricInfo metricKey="heart_rate" />

@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import {
   ComposedChart,
@@ -14,16 +13,20 @@ import {
 import { useChartData } from "@/lib/useChartData";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
-import { cssVar } from "@/lib/cssVar";
+import { useDashboardStore } from "@/lib/store";
 
 export function ANSBalanceChart() {
   const { ansBalance } = useChartData();
+  const theme = useDashboardStore((state) => state.theme);
 
-  const colorTextSecondary = cssVar("--text-secondary") || "#888888";
-  const colorBorderSubtle = "rgba(255,255,255,0.04)";
-  const colorBorderMedium = "rgba(255,255,255,0.08)";
-  const colorBgSurface = "#1C1C1C";
-  const colorTextPrimary = "#FFFFFF";
+  const colorTextSecondary = theme === "whoop" ? "#888888" : "#9090A8";
+  const colorBorderSubtle = theme === "whoop" ? "rgba(255,255,255,0.04)" : "rgba(124,109,250,0.08)";
+  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
+  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
+  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
+  const colorHF = theme === "whoop" ? "#00FF9C" : "#22D3A5";
+  const colorLF = "#9747FF";
+  const colorRatio = theme === "whoop" ? "#FFB800" : "#F59E0B";
 
   const formatXAxis = (tickItem: string) => {
     try {
@@ -37,13 +40,21 @@ export function ANSBalanceChart() {
   return (
     <div
       data-testid="ans-chart"
-      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] min-w-0"
+      className="rounded-2xl border-[0.5px] border-[var(--border-soft)] bg-[var(--bg-card)] p-[20px_24px] min-w-0"
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
-          ANS BALANCE
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
+            ANS BALANCE
+          </span>
+          <span
+            className="text-[11px] text-[var(--text-secondary)] cursor-help hover:text-[var(--text-primary)] transition-colors"
+            title="True LF/HF spectral analysis requires raw RR intervals."
+          >
+            ⓘ
+          </span>
+        </div>
         <MetricInfo metricKey="lf_hf_ratio" />
       </div>
 
@@ -61,20 +72,12 @@ export function ANSBalanceChart() {
                 tickFormatter={formatXAxis}
               />
               <YAxis
-                yAxisId="power"
                 stroke={colorTextSecondary}
                 fontSize={10}
                 tickLine={false}
                 axisLine={false}
-              />
-              <YAxis
-                yAxisId="ratio"
-                orientation="right"
-                stroke={colorTextSecondary}
-                fontSize={10}
-                tickLine={false}
-                axisLine={false}
-                domain={[0, 3]}
+                domain={[0, 100]}
+                tickFormatter={(val) => `${val}%`}
               />
               <Tooltip
                 contentStyle={{
@@ -82,19 +85,18 @@ export function ANSBalanceChart() {
                   borderColor: colorBorderMedium,
                   borderRadius: "8px",
                 }}
-                labelClassName="text-[#888888] text-xs font-mono"
+                labelClassName="text-[var(--text-secondary)] text-xs font-mono"
                 itemStyle={{ fontSize: "12px", color: colorTextPrimary }}
               />
-              <Bar yAxisId="power" dataKey="lf_power" name="LF Power" fill="#9747FF" radius={[2, 2, 0, 0]} barSize={12} />
-              <Bar yAxisId="power" dataKey="hf_power" name="HF Power" fill="#00FF87" radius={[2, 2, 0, 0]} barSize={12} />
+              <Bar dataKey="sympathetic" name="Sympathetic" fill={colorLF} radius={[2, 2, 0, 0]} barSize={12} />
+              <Bar dataKey="parasympathetic" name="Parasympathetic" fill={colorHF} radius={[2, 2, 0, 0]} barSize={12} />
               <Line
-                yAxisId="ratio"
                 type="monotone"
-                dataKey="lf_hf_ratio"
-                name="LF/HF Ratio"
-                stroke="#FFB800"
+                dataKey="parasympathetic"
+                name="ANS Balance (RMSSD proxy)"
+                stroke={colorRatio}
                 strokeWidth={1.5}
-                dot={{ r: 3, fill: "#FFB800" }}
+                dot={{ r: 3, fill: colorRatio }}
                 activeDot={{ r: 5 }}
               />
             </ComposedChart>

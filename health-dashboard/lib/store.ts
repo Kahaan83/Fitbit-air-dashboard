@@ -36,6 +36,12 @@ interface DashboardState {
   setSyncEndDate: (date: string) => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (open: boolean) => void;
+  userAge: number;
+  syncInFlight: boolean;
+  setSyncInFlight: (v: boolean) => void;
+  previousLiveData: any | null;
+  syncProgress: { step: string; done: number; total: number } | null;
+  fetchLiveData: (dateRange?: { start_date: string; end_date: string }) => Promise<void>;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -54,10 +60,16 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       "https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly",
     ],
   },
+  userAge: 28,
   updateSettings: (newSettings) =>
-    set((state) => ({
-      settings: { ...state.settings, ...newSettings },
-    })),
+    set((state) => {
+      const nextSettings = { ...state.settings, ...newSettings };
+      const updates: any = { settings: nextSettings };
+      if (newSettings.age !== undefined) {
+        updates.userAge = newSettings.age;
+      }
+      return updates;
+    }),
   liveData: null,
   setLiveData: (data) => set({ liveData: data }),
   isLoadingLiveData: false,
@@ -78,7 +90,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set((state) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     })),
-  theme: typeof window !== "undefined" ? (localStorage.getItem("theme") as "premium" | "whoop") ?? "premium" : "premium",
+  theme: "premium",
   setTheme: (t) => {
     if (typeof window !== "undefined") {
       document.documentElement.setAttribute("data-theme", t);
@@ -92,4 +104,64 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setSyncEndDate: (date) => set({ syncEndDate: date }),
   isSettingsOpen: false,
   setIsSettingsOpen: (open) => set({ isSettingsOpen: open }),
+  syncInFlight: false,
+  setSyncInFlight: (v) => set({ syncInFlight: v }),
+  previousLiveData: null,
+  syncProgress: null,
+  fetchLiveData: async (dateRange) => {
+    const { syncInFlight, syncStartDate, syncEndDate } = useDashboardStore.getState();
+    if (syncInFlight) {
+      console.debug("Sync already in flight — skipping duplicate call");
+      return;
+    }
+
+    set({
+      syncInFlight: true,
+      previousLiveData: useDashboardStore.getState().liveData,
+      isLoadingLiveData: true,
+      syncProgress: null,
+    });
+
+    const start = dateRange?.start_date || syncStartDate;
+    const end = dateRange?.end_date || syncEndDate;
+
+    const url = `/api/live-data?start_date=${start}&end_date=${end}`;
+    const es = new EventSource(url);
+
+    es.addEventListener("progress", (e: MessageEvent) => {
+      try {
+        const progressData = JSON.parse(e.data);
+        set({ syncProgress: progressData });
+      } catch (err) {
+        console.error("Failed to parse progress event:", err);
+      }
+    });
+
+    es.addEventListener("complete", (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data);
+        set({
+          liveData: payload,
+          lastSync: new Date().toISOString(),
+          dataMode: "live",
+          isLoadingLiveData: false,
+          syncInFlight: false,
+          syncProgress: null,
+        });
+        useDashboardStore.getState().addToast("Synchronized physiological data successfully!", "success");
+      } catch (err) {
+        console.error("Failed to parse complete event:", err);
+        set({ isLoadingLiveData: false, syncInFlight: false });
+        useDashboardStore.getState().addToast("Failed to parse sync data.", "error");
+      }
+      es.close();
+    });
+
+    es.addEventListener("error", (e) => {
+      console.error("SSE connection error:", e);
+      set({ isLoadingLiveData: false, syncInFlight: false });
+      useDashboardStore.getState().addToast("Synchronization connection failed.", "error");
+      es.close();
+    });
+  },
 }));

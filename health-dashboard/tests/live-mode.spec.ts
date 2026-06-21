@@ -161,4 +161,57 @@ test.describe("Live Mode Tests", () => {
     // Verify cooldown warning toast is visible
     await expect(page.locator("text=Sync cooldown active")).toBeVisible();
   });
+
+  test("Saving physiological baselines works successfully", async ({ page }) => {
+    let patchCalled = false;
+    let patchBody: any = null;
+
+    // Intercept PATCH /api/settings/baselines
+    await page.route("**/api/settings/baselines", (route) => {
+      patchCalled = true;
+      patchBody = route.request().postDataJSON();
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        json: { status: "success", message: "Baselines updated successfully." },
+      });
+    });
+
+    await page.goto("http://localhost:3000");
+    await page.waitForLoadState("networkidle");
+
+    // Open settings modal
+    await page.locator('[data-testid="user-profile-button"]').click();
+    await expect(page.locator("text=Data Source")).toBeVisible();
+
+    // Fill in the baselines inputs
+    const ageInput = page.locator('input[type="number"]').nth(0);
+    const targetSleepInput = page.locator('input[type="number"]').nth(1);
+    const restingHrInput = page.locator('input[type="number"]').nth(2);
+    const maxHrInput = page.locator('input[type="number"]').nth(3);
+
+    await ageInput.fill("30");
+    await targetSleepInput.fill("7.5");
+    await restingHrInput.fill("55");
+    await maxHrInput.fill("180");
+
+    // Click "Save Baselines" button
+    const saveButton = page.locator('button:has-text("Save Baselines")');
+    await expect(saveButton).toBeVisible();
+    await saveButton.click();
+
+    // Verify PATCH request was called with expected body
+    await expect.poll(() => patchCalled).toBe(true);
+    expect(patchBody).toEqual({
+      age: 30,
+      max_hr: 180,
+      resting_hr: 55,
+      target_sleep_hours: 7.5,
+    });
+
+    // Check toast indicates success
+    await expect(page.locator("text=Physiological baselines saved successfully.")).toBeVisible();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  });
 });
+

@@ -14,21 +14,22 @@ import {
 import { useChartData } from "@/lib/useChartData";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
-import { cssVar } from "@/lib/cssVar";
+import { useDashboardStore } from "@/lib/store";
 
 export function NocturnalSpO2Chart() {
   const { spo2Nocturnal, isSpO2Fallback } = useChartData();
   const availableDates = Object.keys(spo2Nocturnal).sort((a, b) => b.localeCompare(a)); // Newest first
 
   const [selectedDate, setSelectedDate] = useState("");
+  const theme = useDashboardStore((state) => state.theme);
 
-  const colorTextSecondary = cssVar("--text-secondary") || "#888888";
-  const colorBorderSubtle = "rgba(255,255,255,0.04)";
-  const colorBorderMedium = "rgba(255,255,255,0.08)";
-  const colorBgSurface = "#1C1C1C";
-  const colorTextPrimary = "#FFFFFF";
-  const colorChartSpo2 = "#00D4FF";
-  const colorAccentRed = "#FF3B5C";
+  const colorTextSecondary = theme === "whoop" ? "#888888" : "#9090A8";
+  const colorBorderSubtle = theme === "whoop" ? "rgba(255,255,255,0.04)" : "rgba(124,109,250,0.08)";
+  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
+  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
+  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
+  const colorChartSpo2 = theme === "whoop" ? "#00D4FF" : "#4ECDC4";
+  const colorAccentRed = theme === "whoop" ? "#FF3B5C" : "#F4546A";
 
   useEffect(() => {
     if (availableDates.length > 0 && !selectedDate) {
@@ -55,16 +56,16 @@ export function NocturnalSpO2Chart() {
   return (
     <div
       data-testid="spo2-chart"
-      className="rounded-2xl border-[0.5px] border-[rgba(255,255,255,0.08)] bg-[#111111] p-[20px_24px] min-w-0"
+      className="rounded-2xl border-[0.5px] border-[var(--border-soft)] bg-[var(--bg-card)] p-[20px_24px] min-w-0"
     >
       {/* Header Row */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <span className="text-[11px] font-semibold tracking-[0.08em] text-[#888888] uppercase">
+          <span className="text-[11px] font-semibold tracking-[0.08em] text-[var(--text-secondary)] uppercase">
             NOCTURNAL SpO2
           </span>
           {isSpO2Fallback && (
-            <span className="text-[10px] text-[#FFB800] font-semibold uppercase tracking-wider">
+            <span className="text-[10px] text-[var(--accent-amber)] font-semibold uppercase tracking-wider">
               (Averages Only)
             </span>
           )}
@@ -73,11 +74,11 @@ export function NocturnalSpO2Chart() {
         <div className="flex items-center gap-3">
           {availableDates.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-[#888888] uppercase tracking-wider">Night:</span>
+              <span className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Night:</span>
               <select
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#1C1C1C] px-2 py-1 text-[11px] text-[#FFFFFF] focus:border-[#00FF87] focus:outline-none cursor-pointer"
+                className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-surface)] px-2 py-1 text-[11px] text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none cursor-pointer font-semibold"
               >
                 {availableDates.map((d: string) => (
                   <option key={d} value={d}>
@@ -136,7 +137,7 @@ export function NocturnalSpO2Chart() {
                     borderColor: colorBorderMedium,
                     borderRadius: "8px",
                   }}
-                  labelClassName="text-[#888888] text-xs font-mono"
+                  labelClassName="text-[var(--text-secondary)] text-xs font-mono"
                   itemStyle={{ color: colorTextPrimary, fontSize: "12px", fontWeight: "bold" }}
                   formatter={(value: any) => [`${value}%`, "Oxygen Saturation"]}
                 />
@@ -163,17 +164,17 @@ export function NocturnalSpO2Chart() {
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-4 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#1C1C1C]/40 p-3 flex justify-between items-center text-xs">
-            <span className="text-[#888888] uppercase tracking-wider text-[10px] font-semibold">Night Analysis summary:</span>
-            <div className="flex gap-4 font-mono font-bold text-[#FFFFFF]">
+          <div className="mt-4 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)]/40 p-3 flex justify-between items-center text-xs">
+            <span className="text-[var(--text-secondary)] uppercase tracking-wider text-[10px] font-semibold">Night Analysis summary:</span>
+            <div className="flex gap-4 font-mono font-bold text-[var(--text-primary)]">
               <div className="flex items-center gap-1.5">
-                <span className="text-[#888888] font-normal font-sans text-[11px]">Min SpO2:</span>
-                <span className={values.some(v => v < 90) ? "text-[#FF3B5C]" : "text-[#00D4FF]"}>
+                <span className="text-[var(--text-secondary)] font-normal font-sans text-[11px]">Min SpO2:</span>
+                <span className={values.some(v => v < 90) ? "text-[var(--accent-red)]" : "text-[var(--accent-teal)]"}>
                   {values.length > 0 ? Math.min(...values) : "—"}%
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[#888888] font-normal font-sans text-[11px]">Average:</span>
+                <span className="text-[var(--text-secondary)] font-normal font-sans text-[11px]">Average:</span>
                 <span>
                   {values.length > 0 ? (values.reduce((a: number, b: number) => a + b, 0) / values.length).toFixed(1) : "—"}%
                 </span>

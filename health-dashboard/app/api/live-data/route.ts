@@ -1,13 +1,52 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const start_date = searchParams.get("start_date");
+  const end_date = searchParams.get("end_date");
+
+  const accept = request.headers.get("accept");
+
+  // If client requests text/event-stream, proxy to FastAPI SSE endpoint
+  if (accept?.includes("text/event-stream")) {
+    const backendUrl = `http://127.0.0.1:8000/api/sync-stream?start_date=${start_date || ""}&end_date=${end_date || ""}`;
+    try {
+      const response = await fetch(backendUrl, {
+        headers: {
+          "Accept": "text/event-stream",
+        },
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        return new Response(`Backend error: ${response.statusText}`, { status: response.status });
+      }
+
+      return new Response(response.body, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+        },
+      });
+    } catch (err: any) {
+      return new Response(`Backend unavailable: ${err.message}`, { status: 503 });
+    }
+  }
+
+  // Otherwise proxy normally to /api/health-data JSON endpoint
   const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), 120000); // 120-second (2-minute) timeout to allow browser OAuth completion
+  const id = setTimeout(() => controller.abort(), 120000); // 120-second timeout
 
   try {
-    const res = await fetch("http://127.0.0.1:8000/api/health-data", {
+    let healthDataUrl = "http://127.0.0.1:8000/api/health-data";
+    if (start_date && end_date) {
+      healthDataUrl += `?start_date=${start_date}&end_date=${end_date}`;
+    }
+
+    const res = await fetch(healthDataUrl, {
       signal: controller.signal,
-      cache: "no-store", // Do not cache proxy responses at Next.js server layer
+      cache: "no-store",
     });
     
     clearTimeout(id);

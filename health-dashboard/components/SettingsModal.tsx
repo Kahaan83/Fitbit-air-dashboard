@@ -80,6 +80,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   // Local state for settings form
   const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const [age, setAge] = useState(28);
   const [maxHR, setMaxHR] = useState(185);
   const [restingHR, setRestingHR] = useState(58);
@@ -92,6 +93,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   useEffect(() => {
     if (isOpen) {
       setClientId("");
+      setClientSecret("");
     }
     setAge(settings.age);
     setMaxHR(settings.maxHR);
@@ -163,6 +165,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         },
         body: JSON.stringify({
           clientId,
+          clientSecret,
           age,
           maxHR,
           restingHR,
@@ -189,8 +192,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         targetSleepHours,
       });
 
-      // Clear the clientId local state so it is not sitting in memory
+      // Clear the clientId and clientSecret local states so they are not sitting in memory
       setClientId("");
+      setClientSecret("");
 
       console.log("Checking OAuth token status...");
       const statusRes = await fetch("/api/status");
@@ -438,15 +442,27 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     Google Cloud Credentials
                   </div>
 
-                  <div>
-                    <label className="block text-[var(--text-secondary)] font-medium mb-1.5">GCP Client ID</label>
-                    <input
-                      type="text"
-                      value={clientId}
-                      onChange={(e) => setClientId(e.target.value)}
-                      placeholder="stored securely on backend"
-                      className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors"
-                    />
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[var(--text-secondary)] font-medium mb-1.5">GCP Client ID</label>
+                      <input
+                        type="text"
+                        value={clientId}
+                        onChange={(e) => setClientId(e.target.value)}
+                        placeholder="stored securely on backend"
+                        className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[var(--text-secondary)] font-medium mb-1.5">GCP Client Secret</label>
+                      <input
+                        type="password"
+                        value={clientSecret}
+                        onChange={(e) => setClientSecret(e.target.value)}
+                        placeholder="stored securely on backend"
+                        className="w-full rounded-lg border border-[var(--border-soft)] bg-[var(--bg-base)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none transition-colors"
+                      />
+                    </div>
                   </div>
                 </div>
 
