@@ -10,6 +10,7 @@ CORS is configured to allow requests from http://localhost:3000 (Next.js dev ser
 Run with: uvicorn main:app --reload --port 8000
 """
 
+import asyncio
 import json
 import logging
 import hashlib
@@ -401,7 +402,7 @@ async def update_settings(body: SettingsRequest) -> JSONResponse:
         if os.path.exists(TOKEN_PATH):
             with open(TOKEN_PATH, "r") as f:
                 token_data = json.load(f)
-            if token_data.get("client_id") != body.client_id:
+            if token_data.get("client_id") != final_client_id:
                 os.remove(TOKEN_PATH)
                 logger.info("Client ID changed. Deleted old token.json.")
     except Exception as e:

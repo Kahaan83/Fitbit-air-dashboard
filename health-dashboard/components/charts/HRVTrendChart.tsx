@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -16,6 +16,11 @@ import { EmptyChartState } from "./EmptyChartState";
 import { useDashboardStore } from "@/lib/store";
 
 export function HRVTrendChart() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { hrv } = useChartData();
   const theme = useDashboardStore((state) => state.theme);
 
@@ -59,7 +64,7 @@ export function HRVTrendChart() {
       </div>
 
       <div className="h-[320px] w-full" role="img" aria-label="HRV Recovery Trend chart">
-        {hasData ? (
+        {!mounted ? null : hasData ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={hrv} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
               <defs>

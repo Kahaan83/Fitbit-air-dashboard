@@ -96,8 +96,9 @@ export function WhoopRing({
         </svg>
       </div>
       {/* Label under the ring */}
-      <span className="mt-3 flex items-center justify-center gap-0.5 text-[11px] font-medium tracking-[0.1em] text-[var(--text-secondary)] uppercase">
-        {label} &gt;
+      <span className="mt-3 flex items-center justify-center gap-1 text-[11px] font-medium tracking-[0.1em] text-[var(--text-secondary)] uppercase">
+        {label}
+        {onClick && <span style={{ fontSize: 9, opacity: 0.6 }}>›</span>}
       </span>
     </div>
   );

@@ -1,12 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 
 export function HRZoneChart() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const dataMode = useDashboardStore((state) => state.dataMode);
   const settings = useDashboardStore((state) => state.settings);
   const liveData = useDashboardStore((state) => state.liveData);
@@ -107,7 +112,9 @@ export function HRZoneChart() {
         <MetricInfo metricKey="heart_rate" />
       </div>
 
-      {!hasData ? (
+      {!mounted ? (
+        <div className="h-12 w-full mt-2" />
+      ) : !hasData ? (
         <div className="h-40 w-full mt-2 flex items-center justify-center">
           <EmptyChartState subtitle="Heart rate zone analysis requires active heart rate recordings. Try syncing your Fitbit." />
         </div>

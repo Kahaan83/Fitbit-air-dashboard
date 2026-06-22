@@ -474,7 +474,7 @@ export default function RawMetricsPage() {
   const lastStepsTime = stepsArr.length ? fmt(stepsArr[stepsArr.length - 1].timestamp) : undefined;
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn p-8">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div>
