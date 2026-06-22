@@ -13,6 +13,9 @@ export interface ANSData {
   lf_power: number;
   hf_power: number;
   lf_hf_ratio: number;
+  sympathetic: number;
+  parasympathetic: number;
+  rmssd: number;
 }
 
 export interface SpO2Reading {
@@ -53,19 +56,23 @@ function seededRandom(seed: number): number {
   return x - Math.floor(x);
 }
 
-const ANCHOR_DATE = "2025-06-15";
-
-// Generate the list of dates for the last 30 days
+// Generate the list of dates for the last 30 days (always relative to today)
 export const getPastDates = (numDays = 30): string[] => {
   const dates: string[] = [];
-  const baseDate = new Date(ANCHOR_DATE);
+  // Use a fixed offset from today so dates are always recent
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
   for (let i = numDays - 1; i >= 0; i--) {
-    const d = new Date(baseDate);
-    d.setUTCDate(baseDate.getUTCDate() - i);
+    const d = new Date(today);
+    d.setUTCDate(today.getUTCDate() - i);
     dates.push(d.toISOString().split("T")[0]);
   }
   return dates;
 };
+
+// Anchor date for stress events (used for absolute timestamps)
+const ANCHOR_DATE = new Date();
+ANCHOR_DATE.setUTCHours(0, 0, 0, 0);
 
 const dates = getPastDates(30);
 
@@ -98,12 +105,18 @@ export const mockANSBalance: ANSData[] = dates.map((date, idx) => {
   lf_hf_ratio = Math.max(0.6, Math.min(2.8, lf_hf_ratio));
   const hf_power = 200 + (hrvObj.value * hrvObj.value) * 0.15 + (randPower - 0.5) * 50;
   const lf_power = hf_power * lf_hf_ratio;
+  // Derive sympathetic/parasympathetic proxy from RMSSD (matching backend formula)
+  const parasympathetic = Math.min(100, Math.max(0, (hrvObj.value - 20) / 60 * 100));
+  const sympathetic = 100 - parasympathetic;
 
   return {
     date,
     lf_power: Math.round(lf_power),
     hf_power: Math.round(hf_power),
     lf_hf_ratio: Math.round(lf_hf_ratio * 100) / 100,
+    sympathetic: Math.round(sympathetic * 10) / 10,
+    parasympathetic: Math.round(parasympathetic * 10) / 10,
+    rmssd: Math.round(hrvObj.value * 10) / 10,
   };
 });
 
@@ -223,7 +236,7 @@ const generateStressEvents = (): AcuteStressEvent[] => {
     sDate.setUTCHours(startH, 0, 0, 0);
     
     const eDate = new Date(sDate);
-    eDate.setUTCMinutes(lenMin);
+    eDate.setUTCMinutes(eDate.getUTCMinutes() + lenMin);
     
     events.push({
       id: `stress-${count}`,
@@ -362,12 +375,13 @@ export interface HeartRateReading {
 
 export const mockHeartRateZones: HeartRateReading[] = [];
 (() => {
+  const anchorDateStr = dates[dates.length - 1]; // today
   for (let idx = 0; idx < 96; idx++) {
     const totalMins = idx * 15;
     const h = Math.floor(totalMins / 60);
     const m = totalMins % 60;
     const timeStr = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-    const timestamp = `${ANCHOR_DATE}T${timeStr}:00Z`;
+    const timestamp = `${anchorDateStr}T${timeStr}:00Z`;
 
     const rand = seededRandom(idx + 800);
     let bpm = Math.round(55 + rand * 8);

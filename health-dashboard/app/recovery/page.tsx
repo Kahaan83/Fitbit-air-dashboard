@@ -20,7 +20,7 @@ export default function RecoveryPage() {
   const recentTemp = skinTemp[skinTemp.length - 1]?.value || 0.0;
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn p-8">
       {/* Page Header */}
       <div>
         <h1 className="text-xl font-semibold tracking-normal text-[var(--text-primary)]">Autonomic Recovery</h1>

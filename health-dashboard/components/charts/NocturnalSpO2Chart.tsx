@@ -17,6 +17,11 @@ import { EmptyChartState } from "./EmptyChartState";
 import { useDashboardStore } from "@/lib/store";
 
 export function NocturnalSpO2Chart() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { spo2Nocturnal, isSpO2Fallback } = useChartData();
   const availableDates = Object.keys(spo2Nocturnal).sort((a, b) => b.localeCompare(a)); // Newest first
 
@@ -92,7 +97,9 @@ export function NocturnalSpO2Chart() {
         </div>
       </div>
 
-      {currentData.length === 0 ? (
+      {!mounted ? (
+        <div className="h-[280px] w-full" />
+      ) : currentData.length === 0 ? (
         <div className="h-[280px] w-full">
           <EmptyChartState subtitle="Nocturnal SpO2 data requires active sleep records. Sync a wider date range or check your device settings." />
         </div>

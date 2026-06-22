@@ -455,11 +455,13 @@ class HealthAPIClient:
             for pt in points:
                 date_str = _parse_rollup_date(pt, "dailySleepTemperatureDerivations")
                 temp_data = pt.get("dailySleepTemperatureDerivations", {})
-                val = temp_data.get("nightlyTemperatureCelsius")
-                if val is not None:
+                nightly = temp_data.get("nightlyTemperatureCelsius")
+                baseline = temp_data.get("baselineTemperatureCelsius")
+                if nightly is not None:
+                    val = float(nightly) - (float(baseline) if baseline is not None else 34.80)
                     normalized.append({
                         "timestamp": date_str,
-                        "value": float(val),
+                        "value": round(val, 2),
                         "data_type": "DAILY_SLEEP_TEMPERATURE_DERIVATIONS"
                     })
             normalized.sort(key=lambda x: x["timestamp"])
@@ -484,7 +486,7 @@ class HealthAPIClient:
         data = response.json()
         points = data.get("dataPoints", [])
         
-        normalized = []
+        by_day = {}
         for pt in points:
             sleep_data = pt.get("sleep", {})
             interval = sleep_data.get("interval", {})
@@ -514,14 +516,23 @@ class HealthAPIClient:
                     if stype in stage_durations:
                         stage_durations[stype] = mval
                         
-                normalized.append({
-                    "timestamp": date_str,
-                    "value": {
+                if date_str not in by_day:
+                    by_day[date_str] = {
                         "total_sleep_minutes": minutes_asleep,
-                        "stages": stage_durations,
-                    },
-                    "data_type": "SLEEP"
-                })
+                        "stages": stage_durations
+                    }
+                else:
+                    by_day[date_str]["total_sleep_minutes"] += minutes_asleep
+                    for stage in stage_durations:
+                        by_day[date_str]["stages"][stage] += stage_durations[stage]
+                        
+        normalized = []
+        for date_str, val in by_day.items():
+            normalized.append({
+                "timestamp": date_str,
+                "value": val,
+                "data_type": "SLEEP"
+            })
         normalized.sort(key=lambda x: x["timestamp"])
         logger.info(f"get_sleep: {len(normalized)} sleep sessions returned.")
         return normalized

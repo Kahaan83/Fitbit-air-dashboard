@@ -137,7 +137,7 @@ export default function OverviewPage() {
             {/* Three rings */}
             <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center" }}>
               <WhoopRing
-                value={sleepEfficiency || 93}
+                value={sleepEfficiency ?? 93}
                 label="SLEEP"
                 unit="%"
                 color="var(--chart-sleep)"
@@ -145,7 +145,7 @@ export default function OverviewPage() {
                 onClick={() => router.push("/sleep")}
               />
               <WhoopRing
-                value={recoveryScore || 76}
+                value={recoveryScore ?? 76}
                 label="RECOVERY"
                 unit="%"
                 color="var(--chart-hrv)"

@@ -56,7 +56,6 @@ export default function Header({ date = "Today", onPrev, onNext }: HeaderProps =
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{formatLastSync()}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-secondary)", fontSize: 14 }}>
-          <span>54%</span>
           <i className="ti ti-device-watch" style={{ fontSize: 20 }} />
         </div>
         <div 

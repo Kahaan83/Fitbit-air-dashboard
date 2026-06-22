@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -18,6 +18,11 @@ import { EmptyChartState } from "./EmptyChartState";
 import { useDashboardStore } from "@/lib/store";
 
 export function SkinTempChart() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { skinTemp } = useChartData();
   const theme = useDashboardStore((state) => state.theme);
 
@@ -72,7 +77,7 @@ export function SkinTempChart() {
       </div>
 
       <div className="h-[280px] w-full" role="img" aria-label="Sleep Skin Temperature Deviation chart">
-        {hasData ? (
+        {!mounted ? null : hasData ? (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={skinTemp} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={colorBorderSubtle} vertical={false} />

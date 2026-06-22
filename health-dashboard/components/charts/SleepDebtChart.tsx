@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -17,6 +17,11 @@ import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 
 export function SleepDebtChart() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { sleepDebt } = useChartData();
   const { settings, theme } = useDashboardStore();
   const target = settings.targetSleepHours;
@@ -68,13 +73,16 @@ export function SleepDebtChart() {
             <span className="flex items-center gap-1 text-[var(--accent-red)]">
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-red)]" /> Deficit
             </span>
+            <span className="flex items-center gap-1 text-[var(--accent-green)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent-green)]" /> Surplus
+            </span>
           </div>
           <MetricInfo metricKey="sleep_debt" />
         </div>
       </div>
 
       <div className="h-[320px] w-full" role="img" aria-label="Sleep Duration & Deficit chart">
-        {sleepDebt && sleepDebt.length > 0 ? (
+        {!mounted ? null : sleepDebt && sleepDebt.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={colorBorderSubtle} vertical={false} />
@@ -121,6 +129,7 @@ export function SleepDebtChart() {
               />
               <Bar dataKey="actual_sleep" stackId="sleep" fill={colorChartSleep} radius={[2, 2, 0, 0]} />
               <Bar dataKey="deficit" stackId="sleep" fill={colorAccentRed} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="surplus" stackId="sleep" fill="var(--accent-green)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

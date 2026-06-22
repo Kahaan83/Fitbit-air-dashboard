@@ -1,4 +1,5 @@
 import pytest
+import json
 import time
 from unittest.mock import AsyncMock, patch
 from google.oauth2.credentials import Credentials
@@ -120,3 +121,96 @@ def test_get_alerts(test_client):
     assert "spo2_drop" in types
     assert "high_stress" in types
     assert "sleep_deprivation" in types
+
+
+def test_update_settings_client_id_unchanged(test_client):
+    credentials_json_content = json.dumps({
+        "installed": {
+            "client_id": "test-client-id-123",
+            "client_secret": "secret",
+            "project_id": "mock-project"
+        }
+    })
+    token_json_content = json.dumps({
+        "client_id": "test-client-id-123",
+        "token": "mock-token"
+    })
+
+    exists_mock = lambda path: True if path in ["credentials.json", "token.json"] else False
+    
+    from unittest.mock import mock_open
+    import json as json_module
+    
+    mock_files = {
+        "credentials.json": credentials_json_content,
+        "token.json": token_json_content
+    }
+    
+    def custom_open(path, mode="r", *args, **kwargs):
+        if "w" in mode:
+            return mock_open().return_value
+        content = mock_files.get(str(path), "")
+        return mock_open(read_data=content).return_value
+
+    with patch("os.path.exists", side_effect=exists_mock), \
+         patch("builtins.open", side_effect=custom_open), \
+         patch("os.remove") as mock_remove:
+        
+        payload = {
+            "client_id": "",
+            "client_secret": "",
+            "age": 28,
+            "max_hr": 185.0,
+            "resting_hr": 58.0,
+            "target_sleep_hours": 8.0
+        }
+        response = test_client.post("/api/settings", json=payload)
+        assert response.status_code == 200
+        mock_remove.assert_not_called()
+
+
+def test_update_settings_client_id_changed(test_client):
+    credentials_json_content = json.dumps({
+        "installed": {
+            "client_id": "test-client-id-123",
+            "client_secret": "secret",
+            "project_id": "mock-project"
+        }
+    })
+    token_json_content = json.dumps({
+        "client_id": "test-client-id-123",
+        "token": "mock-token"
+    })
+
+    exists_mock = lambda path: True if path in ["credentials.json", "token.json"] else False
+    
+    from unittest.mock import mock_open
+    import json as json_module
+    
+    mock_files = {
+        "credentials.json": credentials_json_content,
+        "token.json": token_json_content
+    }
+    
+    def custom_open(path, mode="r", *args, **kwargs):
+        if "w" in mode:
+            return mock_open().return_value
+        content = mock_files.get(str(path), "")
+        return mock_open(read_data=content).return_value
+
+    with patch("os.path.exists", side_effect=exists_mock), \
+         patch("builtins.open", side_effect=custom_open), \
+         patch("os.remove") as mock_remove:
+        
+        payload = {
+            "client_id": "new-different-client-id",
+            "client_secret": "",
+            "age": 28,
+            "max_hr": 185.0,
+            "resting_hr": 58.0,
+            "target_sleep_hours": 8.0
+        }
+        response = test_client.post("/api/settings", json=payload)
+        assert response.status_code == 200
+        mock_remove.assert_called_once_with("token.json")
+

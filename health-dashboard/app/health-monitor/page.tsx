@@ -57,7 +57,7 @@ export default function HealthMonitorPage() {
   const allInRange = metrics.every((m) => m.inRange);
 
   return (
-    <div className="space-y-8 animate-fadeIn max-w-3xl mx-auto py-8">
+    <div className="space-y-8 animate-fadeIn max-w-3xl mx-auto py-8 px-8">
       {/* Back button */}
       <div>
         <Link

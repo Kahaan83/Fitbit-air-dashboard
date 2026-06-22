@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   ComposedChart,
   Bar,
@@ -16,6 +16,11 @@ import { EmptyChartState } from "./EmptyChartState";
 import { useDashboardStore } from "@/lib/store";
 
 export function ANSBalanceChart() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const { ansBalance } = useChartData();
   const theme = useDashboardStore((state) => state.theme);
 
@@ -50,7 +55,7 @@ export function ANSBalanceChart() {
           </span>
           <span
             className="text-[11px] text-[var(--text-secondary)] cursor-help hover:text-[var(--text-primary)] transition-colors"
-            title="True LF/HF spectral analysis requires raw RR intervals."
+            title="Autonomic balance proxy derived from daily RMSSD. True LF/HF spectral analysis requires raw RR intervals."
           >
             ⓘ
           </span>
@@ -59,7 +64,7 @@ export function ANSBalanceChart() {
       </div>
 
       <div className="h-[280px] w-full" role="img" aria-label="ANS Autonomic Balance chart">
-        {ansBalance && ansBalance.length > 0 ? (
+        {!mounted ? null : ansBalance && ansBalance.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={ansBalance} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={colorBorderSubtle} vertical={false} />
@@ -87,13 +92,18 @@ export function ANSBalanceChart() {
                 }}
                 labelClassName="text-[var(--text-secondary)] text-xs font-mono"
                 itemStyle={{ fontSize: "12px", color: colorTextPrimary }}
+                formatter={(value: any, name: any) => {
+                  if (name === "sympathetic") return [`${value}%`, "Sympathetic (SNS)"];
+                  if (name === "parasympathetic") return [`${value}%`, "Parasympathetic (PNS)"];
+                  return [value, name];
+                }}
               />
-              <Bar dataKey="sympathetic" name="Sympathetic" fill={colorLF} radius={[2, 2, 0, 0]} barSize={12} />
-              <Bar dataKey="parasympathetic" name="Parasympathetic" fill={colorHF} radius={[2, 2, 0, 0]} barSize={12} />
+              <Bar dataKey="sympathetic" name="sympathetic" fill={colorLF} radius={[2, 2, 0, 0]} barSize={12} />
+              <Bar dataKey="parasympathetic" name="parasympathetic" fill={colorHF} radius={[2, 2, 0, 0]} barSize={12} />
               <Line
                 type="monotone"
                 dataKey="parasympathetic"
-                name="ANS Balance (RMSSD proxy)"
+                name="ANS Balance"
                 stroke={colorRatio}
                 strokeWidth={1.5}
                 dot={{ r: 3, fill: colorRatio }}

@@ -46,14 +46,16 @@ export function useChartData() {
     value: typeof d.value === "number" ? d.value : parseFloat(d.value),
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-  // 2. ANS Balance: Already computed on backend (safely handling list or dict format)
+  // 2. ANS Balance: backend returns sympathetic/parasympathetic/rmssd (not lf/hf)
   const ansRaw = displayLiveData.derived?.ans_balance;
   const ansList = Array.isArray(ansRaw) ? ansRaw : (ansRaw?.data || []);
   const ansMapped = ansList.map((d: any) => ({
     date: d.date,
-    lf_power: d.lf_power,
-    hf_power: d.hf_power,
-    lf_hf_ratio: d.lf_hf_ratio,
+    sympathetic: d.sympathetic,
+    parasympathetic: d.parasympathetic,
+    rmssd: d.rmssd,
+    // Compute lf_hf_ratio proxy from sympathetic/parasympathetic for RecoveryPage
+    lf_hf_ratio: d.parasympathetic > 0 ? Math.round((d.sympathetic / d.parasympathetic) * 100) / 100 : 0,
   })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
   // 3. Skin Temp (DAILY_SLEEP_TEMPERATURE_DERIVATIONS)
