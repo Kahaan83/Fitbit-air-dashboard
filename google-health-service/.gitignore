@@ -26,3 +26,8 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Cache database
+cache.db
+*.db
+

@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import { useDashboardStore } from "@/lib/store";
 
 const nav = [
-  { href: "/overview",  icon: "ti-layout-dashboard",   label: "Overview"  },
-  { href: "/recovery",  icon: "ti-heart-rate-monitor",  label: "Recovery"  },
-  { href: "/sleep",     icon: "ti-moon",                label: "Sleep"     },
-  { href: "/raw",       icon: "ti-table",               label: "Raw Data"  },
+  { href: "/",              icon: "ti-layout-dashboard",   label: "Overview"  },
+  { href: "/recovery",     icon: "ti-heart-rate-monitor",  label: "Recovery"  },
+  { href: "/sleep",        icon: "ti-moon",                label: "Sleep"     },
+  { href: "/stress",       icon: "ti-bolt",                label: "Stress"    },
+  { href: "/health-monitor", icon: "ti-activity",          label: "Monitor"   },
+  { href: "/raw",          icon: "ti-table",               label: "Raw Data"  },
 ];
 
 export default function Sidebar() {
@@ -38,7 +40,10 @@ export default function Sidebar() {
       {/* Nav links */}
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {nav.map(item => {
-          const active = path === item.href || path.startsWith(item.href + "/");
+          const active =
+            path === item.href ||
+            (item.href === "/" && path === "/overview") ||
+            path.startsWith(item.href + "/");
           return (
             <Link key={item.href} href={item.href} style={{
               display: "flex", alignItems: "center", gap: 12,

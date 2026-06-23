@@ -21,7 +21,7 @@ export function DataStreamsStrip() {
         hasData = (liveData.hrv || []).length > 0;
         break;
       case "SpO2":
-        hasData = (liveData.spo2 || []).length > 0;
+        hasData = (liveData.spo2 || []).length > 0 || (liveData.daily_spo2 || []).length > 0;
         break;
       case "Skin Temp":
         hasData = (liveData.sleep_temp || []).length > 0;

@@ -18,6 +18,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone, date, timedelta
+from contextlib import asynccontextmanager
 from typing import Any
 
 from dotenv import load_dotenv
@@ -25,8 +26,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.gzip import GZipMiddleware
-from pydantic import BaseModel, field_validator, ValidationError
-from models import HealthDataResponse
+from pydantic import BaseModel, field_validator
 
 from auth import get_credentials, get_token_info
 from derived_metrics import (
@@ -248,6 +248,15 @@ def _empty_health_payload() -> dict[str, Any]:
     }
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # startup
+    from datetime import date, timedelta
+    dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(90)]
+    _cache["days"] = cache.get_days(dates)
+    logger.info(f"Cache warmed: {len(_cache['days'])} days loaded from disk")
+    yield
+
 # ─── FastAPI App ──────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Fitbit Air — Google Health API Gateway",
@@ -257,10 +266,10 @@ app = FastAPI(
         "and exposes computed metrics for the Next.js dashboard."
     ),
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-import os
 ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN")
 # Strict check for ALLOWED_ORIGIN is required for production to prevent cross-origin authorization token theft
 if not ALLOWED_ORIGIN:
@@ -309,12 +318,6 @@ class BaselinesRequest(BaseModel):
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
-@app.on_event("startup")
-async def warm_cache():
-    from datetime import date, timedelta
-    dates = [(date.today() - timedelta(days=i)).isoformat() for i in range(90)]
-    _cache["days"] = cache.get_days(dates)
-    logger.info(f"Cache warmed: {len(_cache['days'])} days loaded from disk")
 
 @app.post("/api/settings", summary="Update GCP credentials and user baselines")
 async def update_settings(body: SettingsRequest) -> JSONResponse:
@@ -468,7 +471,6 @@ async def get_status() -> JSONResponse:
 
 
 def _validate_and_respond(payload: dict[str, Any], headers: dict[str, str]) -> JSONResponse:
-    # TODO: add response_model after models.py is aligned with payload shape.
     return JSONResponse(content=payload, headers=headers)
 
 
@@ -570,15 +572,16 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
     last_user_sync = _cache.get("user_synced_at")
     if last_user_sync is not None:
         elapsed = time.time() - last_user_sync
-        if elapsed < 10:
-            retry_after = int(10 - elapsed)
+        if elapsed < 60:
+            retry_after = max(1, int(60 - elapsed))
             return JSONResponse(
                 status_code=429,
                 content={
                     "error": "Sync cooldown active",
                     "retry_after": retry_after,
                     "last_user_sync": last_user_sync
-                }
+                },
+                headers={"Retry-After": str(retry_after)}
             )
 
     logger.info(
@@ -672,14 +675,22 @@ async def sync_stream(start_date: str, end_date: str) -> StreamingResponse:
             except Exception as e:
                 logger.warning(f"Failed to apply heart rate date range limit: {e}")
 
-            # Enforce resolution caps based on date range
-            if days_count > 7:
-                logger.info(f"Sync range is {days_count} days (> 7 days). Skipping intraday Heart Rate and SpO2 fetches.")
-                heart_rate_coro = empty_list()
-                spo2_coro = empty_list()
-            else:
-                heart_rate_coro = client.get_heart_rate(start_date_hr, end_date)
-                spo2_coro = client.get_spo2(start_date, end_date)
+            # Handle SpO2 date range limit
+            start_date_spo2 = start_date
+            try:
+                from datetime import datetime, timedelta
+                limit_days = int(os.getenv("SPO2_DAYS_LIMIT", "7"))
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                if (end_dt - start_dt).days > limit_days:
+                    start_date_spo2 = (end_dt - timedelta(days=limit_days)).strftime("%Y-%m-%d")
+            except Exception as e:
+                logger.warning(f"Failed to apply SpO2 date range limit: {e}")
+                start_date_spo2 = start_date
+
+            heart_rate_coro = client.get_heart_rate(start_date_hr, end_date)
+            spo2_coro = client.get_spo2(start_date_spo2, end_date)
+
 
             tasks_dict = {
                 "heart_rate": heart_rate_coro,

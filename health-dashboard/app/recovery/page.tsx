@@ -43,16 +43,19 @@ export default function RecoveryPage() {
           <div>
             <div className="flex items-center gap-1.5">
               <Activity className="h-5 w-5 text-[var(--accent-primary)]" />
-              <span className="text-xs text-[var(--text-secondary)] font-semibold uppercase tracking-wider">Average LF/HF Ratio</span>
+              <span className="text-xs text-[var(--text-secondary)] font-semibold uppercase tracking-wider">Sympathetic Dominance Index</span>
               <MetricInfo metricKey="lf_hf_ratio" />
             </div>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 leading-none">
+              Proxy derived from daily RMSSD (not spectral LF/HF)
+            </p>
             <div className="flex items-baseline gap-1.5 mt-1.5">
               <span className="text-3xl font-semibold text-[var(--text-primary)]">{avgLFHF.toFixed(2)}</span>
             </div>
             <span className={`text-xs mt-2 inline-block font-medium ${
-              avgLFHF >= 1.0 && avgLFHF <= 2.0 ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"
+              avgLFHF > 0 && avgLFHF < 1.0 ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"
             }`}>
-              {avgLFHF >= 1.0 && avgLFHF <= 2.0 ? "Balanced Vagal Tone" : "Sympathetic Dominance"}
+              {avgLFHF > 0 && avgLFHF < 1.0 ? "Balanced Vagal Tone" : "Sympathetic Dominance"}
             </span>
           </div>
         </div>

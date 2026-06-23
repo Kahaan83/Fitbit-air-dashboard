@@ -17,6 +17,11 @@ import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 import { useDashboardStore } from "@/lib/store";
 
+const getVar = (name: string) =>
+  typeof window !== "undefined"
+    ? getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+    : "";
+
 export function SkinTempChart() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -24,15 +29,14 @@ export function SkinTempChart() {
   }, []);
 
   const { skinTemp } = useChartData();
-  const theme = useDashboardStore((state) => state.theme);
 
-  const colorTextSecondary = theme === "whoop" ? "#888888" : "#9090A8";
-  const colorBorderSubtle = theme === "whoop" ? "rgba(255,255,255,0.04)" : "rgba(124,109,250,0.08)";
-  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
-  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
-  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
-  const colorAccentRed = theme === "whoop" ? "#FF3B5C" : "#F4546A";
-  const colorAccentBlue = theme === "whoop" ? "#00D4FF" : "#38BDF8";
+  const colorTextSecondary = getVar("--text-secondary");
+  const colorBorderSubtle = getVar("--border-subtle");
+  const colorBorderMedium = getVar("--border-medium");
+  const colorBgSurface = getVar("--bg-surface");
+  const colorTextPrimary = getVar("--text-primary");
+  const colorAccentRed = getVar("--accent-red");
+  const colorAccentBlue = getVar("--accent-sky");
 
   const formatXAxis = (tickItem: string) => {
     try {

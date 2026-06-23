@@ -23,13 +23,17 @@ function vo2Percentile(vo2max: number, age: number): number {
   return 5
 }
 
+const getVar = (name: string) =>
+  typeof window !== "undefined"
+    ? getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+    : "";
+
 export function VO2MaxChart() {
   const { vo2Max } = useChartData();
-  const theme = useDashboardStore((state) => state.theme);
   const userAge = useDashboardStore((state) => state.userAge);
   const latestVO2Max = vo2Max.length > 0 ? Math.round(vo2Max[vo2Max.length - 1].vo2_max * 10) / 10 : 48.5;
 
-  const colorAccentBlue = theme === "whoop" ? "#00D4FF" : "#38BDF8";
+  const colorAccentBlue = getVar("--accent-sky");
   const percentile = vo2Percentile(latestVO2Max, userAge ?? 30);
 
   return (
