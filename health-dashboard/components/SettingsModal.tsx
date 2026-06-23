@@ -201,30 +201,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       const statusData = await statusRes.json();
 
       if (statusData.token_valid) {
-        console.log("Token valid! Fetching live health metrics payload...");
-        const liveRes = await fetch("/api/live-data");
-        
-        if (!liveRes.ok) {
-          let errMsg = "Failed to extract data payload from Python gateway.";
-          try {
-            const errData = await liveRes.json();
-            if (errData && errData.message) {
-              errMsg = errData.message;
-            }
-          } catch (_) {}
-          throw new Error(errMsg);
-        }
-        
-        const livePayload = await liveRes.json();
-        
-        // Populate live data in store
-        const { setLiveData, setLastSync } = useDashboardStore.getState();
-        setLiveData(livePayload);
-        setLastSync(new Date().toISOString());
+        console.log("Token valid! Fetching live health metrics payload via SSE stream...");
+        await useDashboardStore.getState().fetchLiveData();
+
         setDataMode("live");
         success = true;
         useDashboardStore.getState().setIsLoadingLiveData(false);
-        
+
         addToast("Connected — Live Data Mode active! Successfully synced physiological measurements.", "success");
         onClose();
       } else {
@@ -233,29 +216,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           "OAuth token not found. Launching browser login flow. Please complete authentication in the browser window.",
           "info"
         );
-        const liveRes = await fetch("/api/live-data");
-        
-        if (!liveRes.ok) {
-          let errMsg = "Authentication flow failed or was cancelled.";
-          try {
-            const errData = await liveRes.json();
-            if (errData && errData.message) {
-              errMsg = errData.message;
-            }
-          } catch (_) {}
-          throw new Error(errMsg);
-        }
-        
-        const livePayload = await liveRes.json();
-        
+        await useDashboardStore.getState().fetchLiveData();
+
         // Double check status to see if token is now valid
         const nextStatusRes = await fetch("/api/status");
         const nextStatusData = await nextStatusRes.json();
-        
+
         if (nextStatusData.token_valid) {
-          const { setLiveData, setLastSync } = useDashboardStore.getState();
-          setLiveData(livePayload);
-          setLastSync(new Date().toISOString());
           setDataMode("live");
           success = true;
           useDashboardStore.getState().setIsLoadingLiveData(false);
@@ -333,14 +300,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             const statusRes = await fetch("/api/status");
                             const statusData = await statusRes.json();
                             if (statusData.token_valid) {
-                              const liveRes = await fetch("/api/live-data");
-                              if (liveRes.ok) {
-                                const livePayload = await liveRes.json();
-                                const { setLiveData, setLastSync } = useDashboardStore.getState();
-                                setLiveData(livePayload);
-                                setLastSync(new Date().toISOString());
-                                setDataMode("live");
-                              } else {
+                              try {
+                                const { fetchLiveData, syncStartDate, syncEndDate } = useDashboardStore.getState();
+                                await fetchLiveData({ start_date: syncStartDate, end_date: syncEndDate });
+                                if (useDashboardStore.getState().liveData) {
+                                  setDataMode("live");
+                                } else {
+                                  addToast("Live data fetch failed. Ensure your Python backend is running.", "error");
+                                }
+                              } catch {
                                 addToast("Live data fetch failed. Ensure your Python backend is running.", "error");
                               }
                             } else {

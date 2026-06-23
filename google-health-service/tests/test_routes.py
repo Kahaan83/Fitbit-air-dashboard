@@ -11,13 +11,36 @@ mock_creds = Credentials(token="mock-token", refresh_token="mock-refresh-token")
 def reset_cache():
     # Import main and reset cache before each test
     import main
+    import cache
+    import sqlite3
+
+    # Point cache module at a fresh in-memory DB so no on-disk data leaks in
+    mem_db = sqlite3.connect(":memory:", check_same_thread=False)
+    mem_db.execute("PRAGMA journal_mode=WAL")
+    mem_db.execute("""
+        CREATE TABLE IF NOT EXISTS day_cache (
+            date TEXT PRIMARY KEY,
+            data TEXT NOT NULL,
+            cached_at TEXT NOT NULL
+        )
+    """)
+    mem_db.commit()
+    cache._db = mem_db
+
     main._cache = {
         "payload": None,
         "synced_at": None,
         "auto_synced_at": None,
         "user_synced_at": None,
+        "days": {},
+        "derived": None,
+        "derived_hash": None,
     }
     yield
+
+    mem_db.close()
+    cache._db = None
+
 
 @pytest.fixture(autouse=True)
 def mock_auth():
@@ -60,8 +83,8 @@ def test_get_health_data_payload(test_client, mock_client):
     payload = {"start_date": "2026-06-01", "end_date": "2026-06-07"}
     test_client.post("/api/trigger-sync", json=payload)
 
-    # Now get health data
-    response = test_client.get("/api/health-data")
+    # Now get health data for the same date range that was synced
+    response = test_client.get("/api/health-data?start_date=2026-06-01&end_date=2026-06-07")
     assert response.status_code == 200
     data = response.json()
     assert "heart_rate" in data

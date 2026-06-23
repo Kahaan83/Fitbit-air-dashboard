@@ -6,6 +6,11 @@ import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 
+const getVar = (name: string) =>
+  typeof window !== "undefined"
+    ? getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+    : "";
+
 export function HRZoneChart() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -15,17 +20,16 @@ export function HRZoneChart() {
   const dataMode = useDashboardStore((state) => state.dataMode);
   const settings = useDashboardStore((state) => state.settings);
   const liveData = useDashboardStore((state) => state.liveData);
-  const theme = useDashboardStore((state) => state.theme);
 
-  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
-  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
-  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
+  const colorBgSurface = getVar("--bg-surface");
+  const colorBorderMedium = getVar("--border-medium");
+  const colorTextPrimary = getVar("--text-primary");
 
-  const colorZone1 = theme === "whoop" ? "#333333" : "#44445A";
-  const colorZone2 = theme === "whoop" ? "#00D4FF" : "#2563EB";
-  const colorZone3 = theme === "whoop" ? "#00FF9C" : "#22D3A5";
-  const colorZone4 = theme === "whoop" ? "#FFB800" : "#F59E0B";
-  const colorZone5 = theme === "whoop" ? "#FF3B5C" : "#F4546A";
+  const colorZone1 = getVar("--chart-zone1");
+  const colorZone2 = getVar("--chart-zone2");
+  const colorZone3 = getVar("--chart-zone3");
+  const colorZone4 = getVar("--chart-zone4");
+  const colorZone5 = getVar("--chart-zone5");
 
   const heartRateData = liveData?.heart_rate || [];
   const maxHR = settings.maxHR || 185;

@@ -28,30 +28,6 @@ def _validate_date(value: str, field: str) -> str:
         raise ValueError(f"Invalid {field}: {value!r} — expected YYYY-MM-DD")
     return value
 
-def fetch_heart_rate(
-    credentials: Credentials,
-    date_range: dict[str, str],
-) -> list[dict[str, Any]]:
-    """Fetch intraday heart rate data via HealthAPIClient."""
-    _validate_date(date_range.get("start_date", ""), "start_date")
-    _validate_date(date_range.get("end_date", ""), "end_date")
-    
-    start_date = date_range["start_date"]
-    end_date = date_range["end_date"]
-    
-    try:
-        from datetime import datetime, timedelta
-        limit_days = int(os.getenv("HEART_RATE_DAYS_LIMIT", "7"))
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        if (end_dt - start_dt).days > limit_days:
-            start_date = (end_dt - timedelta(days=limit_days)).strftime("%Y-%m-%d")
-            logger.info(f"Limiting heart rate range from {date_range['start_date']} to {start_date} (limit: {limit_days} days) to prevent timeouts.")
-    except Exception as e:
-        logger.warning(f"Failed to apply heart rate date range limit: {e}")
-
-    client = HealthAPIClient(credentials.token)
-    return client.get_heart_rate(start_date, end_date)
 
 async def fetch_intraday_hrv(
     credentials: Credentials,
@@ -73,25 +49,6 @@ async def fetch_hrv(
     client = HealthAPIClient(credentials.token)
     return await client.get_hrv(date_range["start_date"], date_range["end_date"])
 
-def fetch_spo2(
-    credentials: Credentials,
-    date_range: dict[str, str],
-) -> list[dict[str, Any]]:
-    """Fetch oxygen saturation data via HealthAPIClient."""
-    _validate_date(date_range.get("start_date", ""), "start_date")
-    _validate_date(date_range.get("end_date", ""), "end_date")
-    client = HealthAPIClient(credentials.token)
-    return client.get_spo2(date_range["start_date"], date_range["end_date"])
-
-def fetch_steps(
-    credentials: Credentials,
-    date_range: dict[str, str],
-) -> list[dict[str, Any]]:
-    """Fetch step count data via HealthAPIClient."""
-    _validate_date(date_range.get("start_date", ""), "start_date")
-    _validate_date(date_range.get("end_date", ""), "end_date")
-    client = HealthAPIClient(credentials.token)
-    return client.get_steps(date_range["start_date"], date_range["end_date"])
 
 async def fetch_daily_hrv(
     credentials: Credentials,
@@ -136,15 +93,6 @@ async def fetch_sleep_temp(
     client = HealthAPIClient(credentials.token)
     return await client.get_sleep_temp(date_range["start_date"], date_range["end_date"])
 
-def fetch_sleep(
-    credentials: Credentials,
-    date_range: dict[str, str],
-) -> list[dict[str, Any]]:
-    """Fetch sleep sessions and stages via HealthAPIClient."""
-    _validate_date(date_range.get("start_date", ""), "start_date")
-    _validate_date(date_range.get("end_date", ""), "end_date")
-    client = HealthAPIClient(credentials.token)
-    return client.get_sleep(date_range["start_date"], date_range["end_date"])
 
 
 def downsample_to_minutes(points: list[dict], value_key: str = "value") -> list[dict]:
@@ -204,16 +152,24 @@ async def fetch_all(
         logger.warning(f"Failed to apply heart rate date range limit: {e}")
         start_date_hr = start_date
 
-    # Enforce resolution caps based on date range (Part 2)
-    if days > 7:
-        logger.info(f"Sync range is {days} days (> 7 days). Skipping intraday Heart Rate and SpO2 fetches.")
-        async def empty_list():
-            return []
-        heart_rate_coro = empty_list()
-        spo2_coro = empty_list()
-    else:
-        heart_rate_coro = client.get_heart_rate(start_date_hr, end_date)
-        spo2_coro = client.get_spo2(start_date, end_date)
+    # Handle SpO2 date range limit
+    try:
+        from datetime import datetime, timedelta
+        limit_days = int(os.getenv("SPO2_DAYS_LIMIT", "7"))
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        if (end_dt - start_dt).days > limit_days:
+            start_date_spo2 = (end_dt - timedelta(days=limit_days)).strftime("%Y-%m-%d")
+            logger.info(f"Limiting SpO2 range from {start_date} to {start_date_spo2} (limit: {limit_days} days) to prevent timeouts.")
+        else:
+            start_date_spo2 = start_date
+    except Exception as e:
+        logger.warning(f"Failed to apply SpO2 date range limit: {e}")
+        start_date_spo2 = start_date
+
+    heart_rate_coro = client.get_heart_rate(start_date_hr, end_date)
+    spo2_coro = client.get_spo2(start_date_spo2, end_date)
+
 
     results = await asyncio.gather(
         heart_rate_coro,

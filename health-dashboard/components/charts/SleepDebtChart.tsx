@@ -16,6 +16,11 @@ import { useDashboardStore } from "@/lib/store";
 import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 
+const getVar = (name: string) =>
+  typeof window !== "undefined"
+    ? getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+    : "";
+
 export function SleepDebtChart() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -23,16 +28,16 @@ export function SleepDebtChart() {
   }, []);
 
   const { sleepDebt } = useChartData();
-  const { settings, theme } = useDashboardStore();
+  const { settings } = useDashboardStore();
   const target = settings.targetSleepHours;
 
-  const colorTextSecondary = theme === "whoop" ? "#888888" : "#9090A8";
-  const colorBorderSubtle = theme === "whoop" ? "rgba(255,255,255,0.04)" : "rgba(124,109,250,0.08)";
-  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
-  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
-  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
-  const colorChartSleep = theme === "whoop" ? "#00D4FF" : "#38BDF8";
-  const colorAccentRed = theme === "whoop" ? "#FF3B5C" : "#F4546A";
+  const colorTextSecondary = getVar("--text-secondary");
+  const colorBorderSubtle = getVar("--border-subtle");
+  const colorBorderMedium = getVar("--border-medium");
+  const colorBgSurface = getVar("--bg-surface");
+  const colorTextPrimary = getVar("--text-primary");
+  const colorChartSleep = getVar("--chart-sleep");
+  const colorAccentRed = getVar("--accent-red");
 
   const formatXAxis = (tickItem: string) => {
     try {

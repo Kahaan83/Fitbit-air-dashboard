@@ -108,11 +108,11 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setSyncInFlight: (v) => set({ syncInFlight: v }),
   previousLiveData: null,
   syncProgress: null,
-  fetchLiveData: async (dateRange) => {
+  fetchLiveData: (dateRange) => {
     const { syncInFlight, syncStartDate, syncEndDate } = useDashboardStore.getState();
     if (syncInFlight) {
       console.debug("Sync already in flight — skipping duplicate call");
-      return;
+      return Promise.resolve();
     }
 
     set({
@@ -126,42 +126,49 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     const end = dateRange?.end_date || syncEndDate;
 
     const url = `/api/live-data?start_date=${start}&end_date=${end}`;
-    const es = new EventSource(url);
 
-    es.addEventListener("progress", (e: MessageEvent) => {
-      try {
-        const progressData = JSON.parse(e.data);
-        set({ syncProgress: progressData });
-      } catch (err) {
-        console.error("Failed to parse progress event:", err);
-      }
-    });
+    return new Promise<void>((resolve, reject) => {
+      const es = new EventSource(url);
 
-    es.addEventListener("complete", (e: MessageEvent) => {
-      try {
-        const payload = JSON.parse(e.data);
-        set({
-          liveData: payload,
-          lastSync: new Date().toISOString(),
-          dataMode: "live",
-          isLoadingLiveData: false,
-          syncInFlight: false,
-          syncProgress: null,
-        });
-        useDashboardStore.getState().addToast("Synchronized physiological data successfully!", "success");
-      } catch (err) {
-        console.error("Failed to parse complete event:", err);
+      es.addEventListener("progress", (e: MessageEvent) => {
+        try {
+          const progressData = JSON.parse(e.data);
+          set({ syncProgress: progressData });
+        } catch (err) {
+          console.error("Failed to parse progress event:", err);
+        }
+      });
+
+      es.addEventListener("complete", (e: MessageEvent) => {
+        try {
+          const payload = JSON.parse(e.data);
+          set({
+            liveData: payload,
+            lastSync: new Date().toISOString(),
+            dataMode: "live",
+            isLoadingLiveData: false,
+            syncInFlight: false,
+            syncProgress: null,
+          });
+          useDashboardStore.getState().addToast("Synchronized physiological data successfully!", "success");
+          es.close();
+          resolve();
+        } catch (err) {
+          console.error("Failed to parse complete event:", err);
+          set({ isLoadingLiveData: false, syncInFlight: false });
+          useDashboardStore.getState().addToast("Failed to parse sync data.", "error");
+          es.close();
+          reject(new Error("Failed to parse sync data"));
+        }
+      });
+
+      es.addEventListener("error", (e) => {
+        console.error("SSE connection error:", e);
         set({ isLoadingLiveData: false, syncInFlight: false });
-        useDashboardStore.getState().addToast("Failed to parse sync data.", "error");
-      }
-      es.close();
-    });
-
-    es.addEventListener("error", (e) => {
-      console.error("SSE connection error:", e);
-      set({ isLoadingLiveData: false, syncInFlight: false });
-      useDashboardStore.getState().addToast("Synchronization connection failed.", "error");
-      es.close();
+        useDashboardStore.getState().addToast("Synchronization connection failed.", "error");
+        es.close();
+        reject(new Error("SSE sync failed"));
+      });
     });
   },
 }));

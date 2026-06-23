@@ -7,7 +7,7 @@ import SyncProgressBar from "./SyncProgressBar";
 import { useDashboardStore } from "@/lib/store";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  const { dataMode, setLiveData, setLastSync, theme, setTheme, isSettingsOpen, setIsSettingsOpen } = useDashboardStore();
+  const { dataMode, setLiveData, setLastSync, theme, setTheme, isSettingsOpen, setIsSettingsOpen, syncStartDate, syncEndDate } = useDashboardStore();
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") as "premium" | "whoop" | null;
@@ -25,7 +25,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
     const autoRefresh = async () => {
       try {
-        const res = await fetch("/api/live-data");
+        const params =
+          syncStartDate && syncEndDate
+            ? `?start_date=${syncStartDate}&end_date=${syncEndDate}`
+            : "";
+        const res = await fetch(`/api/live-data${params}`);
         if (res.ok) {
           const payload = await res.json();
           setLiveData(payload);
@@ -40,7 +44,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     const intervalId = setInterval(autoRefresh, 60000);
 
     return () => clearInterval(intervalId);
-  }, [dataMode, setLiveData, setLastSync]);
+  }, [dataMode, setLiveData, setLastSync, syncStartDate, syncEndDate]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-base)] text-[var(--text-primary)] bg-radial-glow font-sans">

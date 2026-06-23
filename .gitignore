@@ -1,0 +1,4 @@
+# Databases
+*.db
+cache.db
+google-health-service/cache.db

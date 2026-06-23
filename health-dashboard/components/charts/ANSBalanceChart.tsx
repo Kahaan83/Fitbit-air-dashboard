@@ -15,6 +15,11 @@ import { MetricInfo } from "@/components/MetricInfo";
 import { EmptyChartState } from "./EmptyChartState";
 import { useDashboardStore } from "@/lib/store";
 
+const getVar = (name: string) =>
+  typeof window !== "undefined"
+    ? getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+    : "";
+
 export function ANSBalanceChart() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -22,16 +27,15 @@ export function ANSBalanceChart() {
   }, []);
 
   const { ansBalance } = useChartData();
-  const theme = useDashboardStore((state) => state.theme);
 
-  const colorTextSecondary = theme === "whoop" ? "#888888" : "#9090A8";
-  const colorBorderSubtle = theme === "whoop" ? "rgba(255,255,255,0.04)" : "rgba(124,109,250,0.08)";
-  const colorBorderMedium = theme === "whoop" ? "rgba(255,255,255,0.14)" : "rgba(124,109,250,0.25)";
-  const colorBgSurface = theme === "whoop" ? "#0A0A0A" : "#111118";
-  const colorTextPrimary = theme === "whoop" ? "#FFFFFF" : "#E8E8F0";
-  const colorHF = theme === "whoop" ? "#00FF9C" : "#22D3A5";
+  const colorTextSecondary = getVar("--text-secondary");
+  const colorBorderSubtle = getVar("--border-subtle");
+  const colorBorderMedium = getVar("--border-medium");
+  const colorBgSurface = getVar("--bg-surface");
+  const colorTextPrimary = getVar("--text-primary");
+  const colorHF = getVar("--accent-green");
   const colorLF = "#9747FF";
-  const colorRatio = theme === "whoop" ? "#FFB800" : "#F59E0B";
+  const colorRatio = getVar("--accent-amber");
 
   const formatXAxis = (tickItem: string) => {
     try {

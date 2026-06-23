@@ -117,7 +117,7 @@ def sleep_mixed():
 @pytest.fixture
 def mock_client():
     from unittest.mock import MagicMock
-    with patch("extractor.HealthAPIClient") as MockClient:
+    with patch("main.HealthAPIClient") as MockClient:
         instance = MockClient.return_value
         instance.get_heart_rate = AsyncMock(return_value=[{"timestamp": "2026-01-15T08:00:00Z", "value": 72}])
         instance.get_intraday_hrv = AsyncMock(return_value=[{"timestamp": "2026-01-15T02:00:00Z", "value": 45.2}])
@@ -129,6 +129,7 @@ def mock_client():
         instance.get_daily_spo2 = AsyncMock(return_value=[])
         instance.get_daily_resting_hr = AsyncMock(return_value=[])
         instance.get_sleep_temp = AsyncMock(return_value=[])
+        instance.close = AsyncMock(return_value=None)
         yield instance
 
 
