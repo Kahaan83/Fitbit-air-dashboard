@@ -9,7 +9,10 @@ export async function GET(request: NextRequest) {
 
   // If client requests text/event-stream, proxy to FastAPI SSE endpoint
   if (accept?.includes("text/event-stream")) {
-    const backendUrl = `http://127.0.0.1:8000/api/sync-stream?start_date=${start_date || ""}&end_date=${end_date || ""}`;
+    let backendUrl = "http://127.0.0.1:8000/api/sync-stream";
+    if (start_date && end_date) {
+      backendUrl += `?start_date=${start_date}&end_date=${end_date}`;
+    }
     try {
       const response = await fetch(backendUrl, {
         headers: {

@@ -44,6 +44,9 @@ def calculate_ans_balance(hrv_data: list[dict]) -> list[dict]:
 
         try:
             rmssd_float = float(rmssd)
+            import math
+            if math.isnan(rmssd_float) or math.isinf(rmssd_float):
+                continue
         except (ValueError, TypeError):
             continue
 

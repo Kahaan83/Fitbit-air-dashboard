@@ -237,3 +237,37 @@ def test_update_settings_client_id_changed(test_client):
         assert response.status_code == 200
         mock_remove.assert_called_once_with("token.json")
 
+
+def test_clean_nans_in_payload(test_client):
+    import main
+    dirty_data = {
+        "float_nan": float("nan"),
+        "float_inf": float("inf"),
+        "float_neginf": float("-inf"),
+        "normal": 1.23,
+        "nested_list": [float("nan"), 4.56, {"key": float("inf")}],
+        "nested_dict": {"inner_nan": float("nan")},
+    }
+    cleaned = main.clean_nans(dirty_data)
+    assert cleaned["float_nan"] is None
+    assert cleaned["float_inf"] is None
+    assert cleaned["float_neginf"] is None
+    assert cleaned["normal"] == 1.23
+    assert cleaned["nested_list"] == [None, 4.56, {"key": None}]
+    assert cleaned["nested_dict"] == {"inner_nan": None}
+
+    main._cache["days"]["2026-06-20"] = {
+        "heart_rate": [{"timestamp": "2026-06-20T10:00:00Z", "value": float("nan")}],
+        "spo2": [],
+        "steps": [],
+        "daily_hrv": [],
+        "daily_spo2": [],
+        "daily_resting_hr": [],
+        "sleep_temp": [],
+        "sleep": [],
+    }
+    response = test_client.get("/api/health-data?start_date=2026-06-20&end_date=2026-06-20")
+    assert response.status_code == 200
+    res_data = response.json()
+    assert res_data["heart_rate"][0]["value"] is None
+

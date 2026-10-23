@@ -45,6 +45,16 @@ def _unwrap(result, name: str) -> list:
         return []
     return result or []
 
+def clean_nans(obj):
+    import math
+    if isinstance(obj, float):
+        return None if math.isnan(obj) or math.isinf(obj) else obj
+    elif isinstance(obj, dict):
+        return {k: clean_nans(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_nans(x) for x in obj]
+    return obj
+
 def _hash_inputs(*data_lists) -> str:
     combined = json.dumps(data_lists, sort_keys=True, default=str)
     return hashlib.md5(combined.encode()).hexdigest()
@@ -471,7 +481,8 @@ async def get_status() -> JSONResponse:
 
 
 def _validate_and_respond(payload: dict[str, Any], headers: dict[str, str]) -> JSONResponse:
-    return JSONResponse(content=payload, headers=headers)
+    cleaned = clean_nans(payload)
+    return JSONResponse(content=cleaned, headers=headers)
 
 
 @app.get("/api/health-data", summary="Full raw and derived health data payload")
@@ -641,10 +652,17 @@ async def trigger_sync(body: SyncRequest) -> JSONResponse:
 
 
 @app.get("/api/sync-stream", summary="Stream physiological sync progress via SSE")
-async def sync_stream(start_date: str, end_date: str) -> StreamingResponse:
+async def sync_stream(start_date: str | None = None, end_date: str | None = None) -> StreamingResponse:
     """
     Kicks off all fetches in parallel for the date range, emitting progress events.
     """
+    if not start_date or not end_date:
+        from datetime import date, timedelta
+        end_date_obj = date.today()
+        start_date_obj = end_date_obj - timedelta(days=30)
+        start_date = start_date_obj.isoformat()
+        end_date = end_date_obj.isoformat()
+
     try:
         credentials = await get_credentials()
     except Exception as e:
@@ -659,7 +677,8 @@ async def sync_stream(start_date: str, end_date: str) -> StreamingResponse:
 
     async def event_generator():
         async def emit(event: str, data: dict):
-            return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+            cleaned_data = clean_nans(data)
+            return f"event: {event}\ndata: {json.dumps(cleaned_data)}\n\n"
 
         client = HealthAPIClient(credentials.token)
         try:
