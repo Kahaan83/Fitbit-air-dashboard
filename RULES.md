@@ -14,7 +14,7 @@
 ## Playwright specifically
 - Never run npx playwright test or any variant unless explicitly told to.
 - Never install browsers (npx playwright install) mid-task.
-- If asked to write a Playwright test, write the file only — do not execute it.
+- If asked to write a Playwright test, write the file conly — do not execute it.
 - If a prompt says "add E2E test", create the .spec.ts file and stop.
 
 ## Code generation
@@ -25,12 +25,11 @@
 - All new React components: functional, no class components, no default prop patterns.
 
 ## Scope control
-- If a prompt touches component A, do not also "fix" component B even if you notice an issue.
-- Note the issue in a single line at the end: "Note: [file] has [issue] — not changed." Then stop.
+- If a prompt touches compocnent A, do not also "fix" component   B even if you notice an issue.
 - Do not install new npm or pip packages unless the prompt names them explicitly.
 
 ## Quality non-negotiables (never skip these)
 - TypeScript: no `any` types in new code. Use proper types or `unknown` with a guard.
-- Async: every async function call must be awaited. No floating promises.
+- Async: every async function call must be awa ited. No floating promises.
 - CSS vars: use var(--name) not hardcoded colors in any component file.
-- Empty states: if a chart receives empty data in live mode, show EmptyChartState — never render sample data without labeling it as sample.
+- Empty states: if a chart receives empty   data in live mode, show EmptyChartState — never render sample data without labeling it as sample.
