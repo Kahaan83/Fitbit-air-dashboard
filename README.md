@@ -8,7 +8,7 @@
 
 ## ✨ Features
 
-- **📊 Live Biometrics** — Real-time heart rate, SpO₂, HRV, and skin temperature pulled directly from Google Health
+- **📊 Live Biometrics** — Real-time heart  rate, SpO₂, HRV, and skin temperature pulled directly from Google Health
 - **😴 Sleep Analytics** — Nightly sleep duration with light, deep, REM, and awake stage breakdowns
 - **🏃 Activity Tracking** — Step count and daily activity summaries
 - **🩺 Recovery Score** — Computed from HRV, resting HR, and sleep quality
@@ -56,10 +56,10 @@ Fitbit_Air_dashboard/
 
 - **Python 3.11+** and **Node.js 18+**
 - A **Google Cloud Project** with the [Google Health API](https://developers.google.com/health) enabled
-- A **Fitbit** or **Pixel Watch** synced through **Google Health Connect** (Android) or the **Fitbit** app
+- A **Fitbit** or **Pixel Watch** synced through **Google Health Connect** (Android) or the **Fitbit** app    
 
 > [!IMPORTANT]
-> The Google Health API v4 is a restricted API. Your GCP project may need to be allowlisted by Google. Visit [developers.google.com/health](https://developers.google.com/health) to request access if the API isn't visible in your GCP library.
+> The Google Health API v4 is a restricted API. Your GCP project may need to be allowlisted by Google. Visit [developers.google.com/health](https://developers.google.com/health) to request access if the API isn't visible in your GCP library.  
 
 ---
 
@@ -108,7 +108,7 @@ Both scripts automatically:
 
 ---
 
-### 3. Manual Developer Startup (Alternative)
+### 3. Manual Developer Startup (Alternative)  
 
 If you prefer to start the servers manually in separate terminal windows, follow these steps:
 
